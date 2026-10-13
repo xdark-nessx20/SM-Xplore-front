@@ -1,10 +1,9 @@
-/** Identificador genérico de las entidades del dominio. */
-export type Id = string
-
-/** Respuesta paginada estándar del API. */
-export interface Paginated<T> {
-  items: T[]
-  total: number
-  page: number
-  pageSize: number
-}
+export type * from './activity'
+export type * from './auth'
+export type * from './common'
+export type * from './event'
+export type * from './reservation'
+export type * from './securityReport'
+export type * from './service'
+export type * from './ui'
+export type * from './user'

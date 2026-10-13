@@ -1,0 +1,588 @@
+{
+  "fileKey": "3FYENRmL7fcaDvGpeT5TEb",
+  "fileName": "WireFrames",
+  "lastModified": "2026-10-12T22:11:45Z",
+  "generatedAt": "2026-10-13T04:53:38.754Z",
+  "frames": [
+    {
+      "page": "02 · Gestionar Actividades",
+      "section": "Turista (web)",
+      "name": "UC2·UC7·UC8 · Explorar actividades"
+    },
+    {
+      "page": "02 · Gestionar Actividades",
+      "section": "Turista (web)",
+      "name": "UC9 · Detalle de actividad"
+    },
+    {
+      "page": "02 · Gestionar Actividades",
+      "section": "Guía (web)",
+      "name": "UC1 · Registrar actividad"
+    },
+    {
+      "page": "02 · Gestionar Actividades",
+      "section": "Guía (web)",
+      "name": "UC3 · Actualizar actividad"
+    },
+    {
+      "page": "02 · Gestionar Actividades",
+      "section": "Guía (web)",
+      "name": "UC4·UC5·UC6 · Disponibilidad y cupos"
+    },
+    {
+      "page": "10 Gestionar Reservas",
+      "section": null,
+      "name": "01-crear-itinerario 1"
+    },
+    {
+      "page": "10 Gestionar Reservas",
+      "section": null,
+      "name": "Crear itinerario"
+    },
+    {
+      "page": "10 Gestionar Reservas",
+      "section": null,
+      "name": "Reservar"
+    },
+    {
+      "page": "10 Gestionar Reservas",
+      "section": null,
+      "name": "Mis Reservas"
+    },
+    {
+      "page": "10 Gestionar Reservas",
+      "section": null,
+      "name": "Reservas Recibidas"
+    },
+    {
+      "page": "10 Gestionar Reservas",
+      "section": null,
+      "name": "Reserva"
+    },
+    {
+      "page": "10 Gestionar Reservas",
+      "section": null,
+      "name": "07-configurar-zona 1"
+    },
+    {
+      "page": "10 Gestionar Reservas",
+      "section": null,
+      "name": "03-mis-reservas 1"
+    },
+    {
+      "page": "11 Gestionar Destino",
+      "section": null,
+      "name": "Frame"
+    },
+    {
+      "page": "11 Gestionar Destino",
+      "section": null,
+      "name": "Frame"
+    },
+    {
+      "page": "03 · Gestionar Eventos",
+      "section": "Turista (web)",
+      "name": "UC4 · Consultar eventos"
+    },
+    {
+      "page": "03 · Gestionar Eventos",
+      "section": "Turista (web)",
+      "name": "UC5·UC6 · Buscar evento"
+    },
+    {
+      "page": "03 · Gestionar Eventos",
+      "section": "Turista (web)",
+      "name": "UC8 · Detalle de evento"
+    },
+    {
+      "page": "03 · Gestionar Eventos",
+      "section": "Turista (web)",
+      "name": "UC7 · Eventos planificados"
+    },
+    {
+      "page": "03 · Gestionar Eventos",
+      "section": "Gestora (web)",
+      "name": "UC1·UC3 · Registrar evento"
+    },
+    {
+      "page": "03 · Gestionar Eventos",
+      "section": "Gestora (web)",
+      "name": "UC2·UC4·UC5 · Gestión de eventos"
+    },
+    {
+      "page": "04 · Gestionar Reseñas",
+      "section": "Turista (web)",
+      "name": "UC2 · Ver reseñas"
+    },
+    {
+      "page": "04 · Gestionar Reseñas",
+      "section": "Turista (web)",
+      "name": "UC3–UC7 · Escribir reseña"
+    },
+    {
+      "page": "04 · Gestionar Reseñas",
+      "section": "Prestadora (web)",
+      "name": "UC8·UC12 · Panel de reseñas"
+    },
+    {
+      "page": "04 · Gestionar Reseñas",
+      "section": "Prestadora (web)",
+      "name": "UC9 · Responder reseña"
+    },
+    {
+      "page": "04 · Gestionar Reseñas",
+      "section": "Prestadora (web)",
+      "name": "UC15 · Reportar reseña"
+    },
+    {
+      "page": "06 · Mockups — Gestionar Actividades",
+      "section": "Turista (web)",
+      "name": "UC2·UC7·UC8 · Explorar actividades"
+    },
+    {
+      "page": "06 · Mockups — Gestionar Actividades",
+      "section": "Turista (web)",
+      "name": "UC9 · Detalle de actividad"
+    },
+    {
+      "page": "06 · Mockups — Gestionar Actividades",
+      "section": "Guía (web)",
+      "name": "UC1 · Registrar actividad"
+    },
+    {
+      "page": "06 · Mockups — Gestionar Actividades",
+      "section": "Guía (web)",
+      "name": "UC3 · Actualizar actividad"
+    },
+    {
+      "page": "06 · Mockups — Gestionar Actividades",
+      "section": "Guía (web)",
+      "name": "UC4·UC5·UC6 · Disponibilidad y cupos"
+    },
+    {
+      "page": "07 · Mockups — Gestionar Eventos",
+      "section": "Turista (web)",
+      "name": "UC4 · Consultar eventos"
+    },
+    {
+      "page": "07 · Mockups — Gestionar Eventos",
+      "section": "Turista (web)",
+      "name": "UC5·UC6 · Buscar evento"
+    },
+    {
+      "page": "07 · Mockups — Gestionar Eventos",
+      "section": "Turista (web)",
+      "name": "UC8 · Detalle de evento"
+    },
+    {
+      "page": "07 · Mockups — Gestionar Eventos",
+      "section": "Turista (web)",
+      "name": "UC7 · Eventos planificados"
+    },
+    {
+      "page": "07 · Mockups — Gestionar Eventos",
+      "section": "Gestora (web)",
+      "name": "UC1·UC3 · Registrar evento"
+    },
+    {
+      "page": "07 · Mockups — Gestionar Eventos",
+      "section": "Gestora (web)",
+      "name": "UC2·UC4·UC5 · Gestión de eventos"
+    },
+    {
+      "page": "08 · Mockups — Gestionar Reseñas",
+      "section": "Turista (web)",
+      "name": "UC2 · Ver reseñas"
+    },
+    {
+      "page": "08 · Mockups — Gestionar Reseñas",
+      "section": "Turista (web)",
+      "name": "UC3–UC7 · Escribir reseña"
+    },
+    {
+      "page": "08 · Mockups — Gestionar Reseñas",
+      "section": "Prestadora (web)",
+      "name": "UC8·UC12 · Panel de reseñas"
+    }
+  ],
+  "colors": [
+    {
+      "value": "#FFFFFF",
+      "count": 804
+    },
+    {
+      "value": "#111827",
+      "count": 677
+    },
+    {
+      "value": "#12212B",
+      "count": 626
+    },
+    {
+      "value": "#6B7280",
+      "count": 541
+    },
+    {
+      "value": "#374151",
+      "count": 349
+    },
+    {
+      "value": "#F3F4F6",
+      "count": 301
+    },
+    {
+      "value": "#9CA3AF",
+      "count": 159
+    },
+    {
+      "value": "#D1D5DB",
+      "count": 103
+    },
+    {
+      "value": "#12304A",
+      "count": 79
+    },
+    {
+      "value": "#F4F5F7",
+      "count": 70
+    },
+    {
+      "value": "#E5E7EB",
+      "count": 61
+    },
+    {
+      "value": "#4B5563",
+      "count": 48
+    },
+    {
+      "value": "#0E8C8A",
+      "count": 47
+    },
+    {
+      "value": "#000000",
+      "count": 40
+    },
+    {
+      "value": "#DDF3EC",
+      "count": 29
+    },
+    {
+      "value": "#F9FAFB",
+      "count": 23
+    },
+    {
+      "value": "#DCFCE7",
+      "count": 17
+    },
+    {
+      "value": "#166534",
+      "count": 17
+    },
+    {
+      "value": "#F8FBFA",
+      "count": 16
+    },
+    {
+      "value": "#61737D",
+      "count": 16
+    },
+    {
+      "value": "#991B1B",
+      "count": 15
+    },
+    {
+      "value": "#92400E",
+      "count": 14
+    },
+    {
+      "value": "#444444",
+      "count": 12
+    },
+    {
+      "value": "#FEF3C7",
+      "count": 12
+    },
+    {
+      "value": "#F47C5A",
+      "count": 9
+    },
+    {
+      "value": "#FEE2E2",
+      "count": 8
+    },
+    {
+      "value": "#FEF2F2",
+      "count": 8
+    },
+    {
+      "value": "#ECFDF5",
+      "count": 7
+    },
+    {
+      "value": "#065F46",
+      "count": 7
+    },
+    {
+      "value": "#E8F5F2",
+      "count": 5
+    },
+    {
+      "value": "#111827 (45%)",
+      "count": 2
+    },
+    {
+      "value": "#DC2626",
+      "count": 2
+    },
+    {
+      "value": "#FFFBEB",
+      "count": 2
+    },
+    {
+      "value": "#EFF6FF",
+      "count": 2
+    },
+    {
+      "value": "#1E40AF",
+      "count": 2
+    },
+    {
+      "value": "#2563EB",
+      "count": 1
+    },
+    {
+      "value": "#059669",
+      "count": 1
+    }
+  ],
+  "textStyles": [
+    {
+      "value": "Inter · 400 · 12px / 14.522727012634277px",
+      "count": 373
+    },
+    {
+      "value": "Inter · 400 · 13px / 15.732954025268555px",
+      "count": 322
+    },
+    {
+      "value": "Inter · 400 · 11px / 13.3125px",
+      "count": 286
+    },
+    {
+      "value": "Inter · 400 · 14px / 16.94318199157715px",
+      "count": 185
+    },
+    {
+      "value": "Manrope · 400 · 12px / 16.392000198364258px",
+      "count": 183
+    },
+    {
+      "value": "Manrope · 400 · 11px / 15.0260009765625px",
+      "count": 170
+    },
+    {
+      "value": "Manrope · 400 · 13px / 17.75800132751465px",
+      "count": 111
+    },
+    {
+      "value": "Inter · 600 · 13px / 15.732954025268555px",
+      "count": 101
+    },
+    {
+      "value": "Inter · 600 · 12px / 14.522727012634277px",
+      "count": 81
+    },
+    {
+      "value": "Manrope · 700 · 12px / 16.392000198364258px",
+      "count": 63
+    },
+    {
+      "value": "Inter · 700 · 13px / 15.732954025268555px",
+      "count": 60
+    },
+    {
+      "value": "Inter · 700 · 14px / 16.94318199157715px",
+      "count": 51
+    },
+    {
+      "value": "Manrope · 700 · 13px / 17.75800132751465px",
+      "count": 47
+    },
+    {
+      "value": "Inter · 700 · 15px / 18.15340805053711px",
+      "count": 45
+    },
+    {
+      "value": "Manrope · 400 · 14px / 19.124000549316406px",
+      "count": 43
+    },
+    {
+      "value": "Inter · 400 · 10px / 12.102272033691406px",
+      "count": 42
+    },
+    {
+      "value": "Manrope · 400 · 10px / 13.660000801086426px",
+      "count": 42
+    },
+    {
+      "value": "Inter · 700 · 20px / 24.204544067382812px",
+      "count": 36
+    },
+    {
+      "value": "Inter · 700 · 16px / 19.363636016845703px",
+      "count": 32
+    },
+    {
+      "value": "Inter · 700 · 12px / 14.522727012634277px",
+      "count": 30
+    },
+    {
+      "value": "Manrope · 700 · 14px / 19.124000549316406px",
+      "count": 25
+    },
+    {
+      "value": "Inter · 700 · 24px / 29.045454025268555px",
+      "count": 18
+    },
+    {
+      "value": "Inter · 600 · 11px / 13.3125px",
+      "count": 16
+    },
+    {
+      "value": "Manrope · 700 · 16px / 21.856000900268555px",
+      "count": 16
+    },
+    {
+      "value": "Manrope · 700 · 11px / 15.0260009765625px",
+      "count": 15
+    },
+    {
+      "value": "Inter · 400 · 12px / 18px",
+      "count": 14
+    },
+    {
+      "value": "Manrope · 700 · 15px / 20.490001678466797px",
+      "count": 14
+    },
+    {
+      "value": "Inter · 700 · 28px / 33.8863639831543px",
+      "count": 13
+    },
+    {
+      "value": "Inter · 700 · 26px / 31.46590805053711px",
+      "count": 12
+    },
+    {
+      "value": "Manrope · 700 · 24px / 32.784000396728516px",
+      "count": 12
+    },
+    {
+      "value": "Inter · 700 · 18px / 21.784090042114258px",
+      "count": 11
+    },
+    {
+      "value": "Inter · 700 · 22px / 26.625px",
+      "count": 11
+    },
+    {
+      "value": "Manrope · 700 · 22px / 30.052001953125px",
+      "count": 9
+    },
+    {
+      "value": "Inter · 600 · 14px / 16.94318199157715px",
+      "count": 9
+    },
+    {
+      "value": "Inter · 400 · 13px / 20px",
+      "count": 8
+    },
+    {
+      "value": "Manrope · 700 · 20px / 27.32000160217285px",
+      "count": 8
+    },
+    {
+      "value": "Manrope · 700 · 18px / 24.588001251220703px",
+      "count": 8
+    },
+    {
+      "value": "Manrope · 400 · 12px / 18px",
+      "count": 7
+    },
+    {
+      "value": "Inter · 400 · 16px / 19.363636016845703px",
+      "count": 6
+    },
+    {
+      "value": "DM Serif Display · 400 · 26px / 35.645999908447266px",
+      "count": 6
+    },
+    {
+      "value": "Manrope · 400 · 16px / 21.856000900268555px",
+      "count": 6
+    },
+    {
+      "value": "Inter · 400 · 13px / 19px",
+      "count": 5
+    },
+    {
+      "value": "Manrope · 400 · 13px / 19px",
+      "count": 5
+    },
+    {
+      "value": "Inter · 400 · 11px / 16px",
+      "count": 4
+    },
+    {
+      "value": "Manrope · 400 · 11px / 16px",
+      "count": 4
+    },
+    {
+      "value": "Inter · 400 · 12px / 17px",
+      "count": 3
+    },
+    {
+      "value": "Inter · 400 · 20px / 24.204544067382812px",
+      "count": 3
+    },
+    {
+      "value": "Manrope · 400 · 12px / 17px",
+      "count": 3
+    },
+    {
+      "value": "DM Serif Display · 400 · 24px / 32.90399932861328px",
+      "count": 3
+    },
+    {
+      "value": "Inter · 400 · 11px / 19px",
+      "count": 2
+    },
+    {
+      "value": "Manrope · 400 · 13px / 20px",
+      "count": 2
+    },
+    {
+      "value": "Manrope · 400 · 11px / 19px",
+      "count": 2
+    },
+    {
+      "value": "Inter · 400 · 15px / 18.15340805053711px",
+      "count": 1
+    },
+    {
+      "value": "Inter · 700 · 44px / 53.25px",
+      "count": 1
+    },
+    {
+      "value": "Manrope · 400 · 15px / 20.490001678466797px",
+      "count": 1
+    },
+    {
+      "value": "Manrope · 400 · 20px / 27.32000160217285px",
+      "count": 1
+    },
+    {
+      "value": "DM Serif Display · 400 · 44px / 60.32400131225586px",
+      "count": 1
+    }
+  ]
+}
