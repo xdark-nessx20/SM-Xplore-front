@@ -121,14 +121,19 @@ export default function UsersPage() {
     },
     {
       header: 'Estado',
-      render: (user) =>
-        user.role === 'SERVICE_PROVIDER' && user.status === 'INACTIVE' ? (
-          <StatusBadge tone="warning">Registro pendiente</StatusBadge>
-        ) : (
+      render: (user) => {
+        if (user.registrationStatus === 'REJECTED') {
+          return <StatusBadge tone="danger">Registro rechazado</StatusBadge>
+        }
+        if (user.status === 'INACTIVE') {
+          return <StatusBadge tone="warning">Registro pendiente</StatusBadge>
+        }
+        return (
           <StatusBadge tone={STATUS_TONES[user.status]}>
             {STATUS_LABELS[user.status]}
           </StatusBadge>
-        ),
+        )
+      },
     },
     {
       header: 'Registro',

@@ -12,8 +12,8 @@ export interface SecurityReportResponse {
   createdAt: string
 }
 
+/** El autor lo deriva el backend del token: no se envía en el cuerpo. */
 export interface SecurityReportRequest {
-  user: UserRefDto
   text: string
   location?: LocationDto
   photosUrls?: string[]
@@ -23,8 +23,8 @@ export interface ChangeReportTextRequest {
   text: string
 }
 
+/** El autor lo deriva el backend del token: no se envía en el cuerpo. */
 export interface CommentRequest {
-  user: UserRefDto
   content: string
 }
 

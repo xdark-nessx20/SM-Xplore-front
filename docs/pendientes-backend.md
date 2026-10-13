@@ -3,6 +3,13 @@
 Brief para la sesión que trabaje el backend. Analizado en `develop` · commit **`b7fc58f`**
 (merge del PR #8 «security»). El frontend (`SM-Xplore-front`) ya consume este contrato.
 
+> **Estado (octubre 2026):** el backend ya implementó buena parte de este brief: sitios y zonas,
+> catálogo público anónimo, rechazo de prestadoras y `registrationStatus` en los listados,
+> edición de eventos (`PUT`), reservas por prestadora/guía/ítem con `code`, reportes resueltos y
+> `user` derivado del token. Siguen pendientes: reseñas, itinerarios, subida de archivos,
+> turnos/cierres por día, cambio de contraseña propio con contraseña actual y recuperación de
+> contraseña real.
+
 ## 0. Cómo orientarse
 
 - Repo: `SM-Xplore-Proto` — Spring Boot 4 WebFlux, hexagonal (`domain` / `application` /

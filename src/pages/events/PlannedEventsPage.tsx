@@ -129,7 +129,7 @@ export default function PlannedEventsPage() {
                   {formatDate(reservation.bookedFor)} ·{' '}
                   {reservation.numberOfPeople}{' '}
                   {reservation.numberOfPeople === 1 ? 'persona' : 'personas'} ·{' '}
-                  #{reservation.id.slice(0, 8).toUpperCase()}
+                  #{reservation.code}
                 </p>
               </div>
 

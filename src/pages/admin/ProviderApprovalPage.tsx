@@ -6,6 +6,7 @@ import { StatusBadge } from '@/components/StatusBadge/StatusBadge'
 import {
   REGISTRATION_LABELS,
   REGISTRATION_TONES,
+  STATUS_LABELS,
 } from '@/config/roles'
 import { usersApi } from '@/services/usersApi'
 import { describeApiError } from '@/utils/errors'
@@ -26,7 +27,9 @@ export default function ProviderApprovalPage() {
   const [provider, setProvider] =
     useState<ServiceProviderProfileResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isWorking, setIsWorking] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [feedback, setFeedback] = useState<string | null>(null)
 
   useEffect(() => {
     if (providerId === undefined) {
@@ -79,6 +82,31 @@ export default function ProviderApprovalPage() {
     )
   }
 
+  const isPending = provider.registrationStatus === 'PENDING'
+
+  async function run(
+    action: () => Promise<ServiceProviderProfileResponse>,
+    message: string,
+  ) {
+    if (provider === null) {
+      return
+    }
+
+    setIsWorking(true)
+    setError(null)
+    setFeedback(null)
+
+    try {
+      const updated = await action()
+      setProvider(updated)
+      setFeedback(message)
+    } catch (cause) {
+      setError(describeApiError(cause))
+    } finally {
+      setIsWorking(false)
+    }
+  }
+
   return (
     <section>
       <Link to="/app/usuarios" className={styles.back}>
@@ -105,6 +133,11 @@ export default function ProviderApprovalPage() {
           {error}
         </p>
       )}
+      {feedback !== null && (
+        <p className={`${styles.feedback} ${styles.success}`} role="status">
+          {feedback}
+        </p>
+      )}
 
       <article className={styles.card}>
         <h2 className={styles.cardTitle}>Datos de la solicitud</h2>
@@ -119,11 +152,11 @@ export default function ProviderApprovalPage() {
           </div>
           <div className={styles.defRow}>
             <span className={styles.defLabel}>Correo</span>
-            <span className={styles.defValue}>{provider.email}</span>
+            <span className={styles.defValue}>{provider.email ?? '—'}</span>
           </div>
           <div className={styles.defRow}>
             <span className={styles.defLabel}>Teléfono</span>
-            <span className={styles.defValue}>{provider.phone}</span>
+            <span className={styles.defValue}>{provider.phone ?? '—'}</span>
           </div>
           <div className={styles.defRow}>
             <span className={styles.defLabel}>Tipo de servicio</span>
@@ -149,7 +182,9 @@ export default function ProviderApprovalPage() {
           </div>
           <div className={styles.defRow}>
             <span className={styles.defLabel}>Estado de la cuenta</span>
-            <span className={styles.defValue}>{provider.status}</span>
+            <span className={styles.defValue}>
+              {STATUS_LABELS[provider.status]}
+            </span>
           </div>
         </div>
       </article>
@@ -173,17 +208,39 @@ export default function ProviderApprovalPage() {
       </article>
 
       <div className={styles.actions}>
-        <Button variant="primary" disabled>
-          Aprobar
+        <Button
+          variant="primary"
+          disabled={isWorking || !isPending}
+          onClick={() =>
+            void run(
+              () => usersApi.approveProvider(provider.id),
+              'Prestadora aprobada: la cuenta quedó activa.',
+            )
+          }
+        >
+          {isWorking ? 'Procesando…' : 'Aprobar'}
         </Button>
-        <Button variant="outline" disabled>
+        <Button
+          variant="outline"
+          disabled={isWorking || !isPending}
+          onClick={() =>
+            void run(
+              () => usersApi.rejectProvider(provider.id),
+              'Registro rechazado.',
+            )
+          }
+        >
           Rechazar
         </Button>
-        <p className={styles.actionsNote}>
-          Pendiente en el backend: el caso de uso
-          <code> ApproveServiceProviderRegistrationUseCase </code>
-          existe, pero ningún endpoint lo expone todavía.
-        </p>
+        {!isPending && (
+          <p className={styles.actionsNote}>
+            La solicitud ya fue{' '}
+            {provider.registrationStatus === 'APPROVED'
+              ? 'aprobada'
+              : 'rechazada'}
+            .
+          </p>
+        )}
       </div>
     </section>
   )

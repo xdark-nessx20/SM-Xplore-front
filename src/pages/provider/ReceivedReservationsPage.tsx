@@ -12,34 +12,15 @@ import {
   RESERVATION_STATUS_TONES,
 } from '@/config/roles'
 import { useAuth } from '@/hooks/useAuth'
-import { activitiesApi } from '@/services/activitiesApi'
 import { loadCatalogLookup } from '@/services/catalogLookup'
 import type { CatalogEntry } from '@/services/catalogLookup'
 import { reservationsApi } from '@/services/reservationsApi'
-import { servicesApi } from '@/services/servicesApi'
 import { usersApi } from '@/services/usersApi'
 import { describeApiError } from '@/utils/errors'
 import { formatDate } from '@/utils/format'
-import type {
-  ReservationItemResponse,
-  ReservationResponse,
-  ReservationStatus,
-} from '@/types'
+import type { ReservationResponse, ReservationStatus } from '@/types'
 import tableStyles from '@/pages/admin/admin.module.css'
 import styles from '@/pages/reservations/reservations.module.css'
-
-/** El backend no tiene endpoint por prestadora: se piden todos los estados. */
-const ALL_STATUSES: ReservationStatus[] = [
-  'PENDING',
-  'CONFIRMED',
-  'CANCELLATION_REQUESTED',
-  'REJECTED',
-  'CANCELLED',
-  'NO_SHOW',
-  'COMPLETED',
-]
-
-const MAX_CANDIDATES = 60
 
 const FILTERS: Array<{ label: string; statuses?: ReservationStatus[] }> = [
   { label: 'Todas' },
@@ -50,7 +31,6 @@ const FILTERS: Array<{ label: string; statuses?: ReservationStatus[] }> = [
 
 interface Row {
   reservation: ReservationResponse
-  item: ReservationItemResponse | undefined
   entry: CatalogEntry | undefined
   touristName: string
 }
@@ -66,11 +46,11 @@ export default function ReceivedReservationsPage() {
   const [filterIndex, setFilterIndex] = useState(0)
   const [term, setTerm] = useState('')
 
-  const providerId = user?.id
+  const userId = user?.id
   const role = user?.role
 
   async function load() {
-    if (providerId === undefined || role === undefined) {
+    if (userId === undefined || role === undefined) {
       return
     }
 
@@ -78,69 +58,29 @@ export default function ReceivedReservationsPage() {
     setError(null)
 
     try {
-      // 1. Ítems propios: actividades del guía o servicios de la prestadora.
-      const myItemIds = new Set<string>()
+      // Reservas recibidas: una sola consulta por cuenta (prestadora o guía).
+      const received =
+        role === 'GUIDE'
+          ? await reservationsApi.listByGuide(userId, { limit: 200 })
+          : await reservationsApi.listByProvider(userId, { limit: 200 })
 
-      if (role === 'GUIDE') {
-        const activities = await activitiesApi.list()
-        for (const activity of activities) {
-          if (activity.guideId === providerId) {
-            myItemIds.add(activity.id)
-          }
-        }
-      } else if (role === 'SERVICE_PROVIDER') {
-        const services = await servicesApi.listByProvider(providerId)
-        for (const service of services) {
-          myItemIds.add(service.id)
-        }
-      }
-
-      // 2. Reservas de todos los estados.
-      const reservationResults = await Promise.allSettled(
-        ALL_STATUSES.map((status) =>
-          reservationsApi.list({ status, limit: 200 }),
-        ),
+      const sorted = [...received].sort(
+        (a, b) =>
+          new Date(b.bookedAt).getTime() - new Date(a.bookedAt).getTime(),
       )
 
-      const byId = new Map<string, ReservationResponse>()
-      for (const result of reservationResults) {
-        if (result.status === 'fulfilled') {
-          for (const reservation of result.value) {
-            byId.set(reservation.id, reservation)
-          }
-        }
-      }
+      // Primer ítem de cada reserva (para mostrar el nombre del servicio/actividad)
+      // y nombre del turista. Ambas consultas van en paralelo.
+      const touristIds = [
+        ...new Set(sorted.map((reservation) => reservation.touristId)),
+      ]
 
-      const candidates = [...byId.values()]
-        .sort(
-          (a, b) =>
-            new Date(b.bookedAt).getTime() - new Date(a.bookedAt).getTime(),
-        )
-        .slice(0, MAX_CANDIDATES)
-
-      // 3. Solo las que tienen algún ítem mío.
-      const itemResults = await Promise.allSettled(
-        candidates.map((reservation) =>
-          reservationsApi.listItems(reservation.id),
+      const [itemResults, touristResults, catalog] = await Promise.all([
+        Promise.allSettled(
+          sorted.map((reservation) =>
+            reservationsApi.listItems(reservation.id),
+          ),
         ),
-      )
-
-      const mine: Array<{ reservation: ReservationResponse; item: ReservationItemResponse }> = []
-
-      itemResults.forEach((result, index) => {
-        if (result.status !== 'fulfilled') {
-          return
-        }
-
-        const owned = result.value.filter((item) => myItemIds.has(item.itemId))
-        if (owned.length > 0) {
-          mine.push({ reservation: candidates[index], item: owned[0] })
-        }
-      })
-
-      // 4. Turistas y nombres de los ítems.
-      const touristIds = [...new Set(mine.map(({ reservation }) => reservation.touristId))]
-      const [touristResults, catalog] = await Promise.all([
         Promise.allSettled(touristIds.map((id) => usersApi.getById(id))),
         loadCatalogLookup(),
       ])
@@ -153,12 +93,19 @@ export default function ReceivedReservationsPage() {
       })
 
       setRows(
-        mine.map(({ reservation, item }) => ({
-          reservation,
-          item,
-          entry: catalog.get(item.itemId),
-          touristName: names.get(reservation.touristId) ?? 'Turista',
-        })),
+        sorted.map((reservation, index) => {
+          const itemResult = itemResults[index]
+          const item =
+            itemResult?.status === 'fulfilled'
+              ? itemResult.value[0]
+              : undefined
+
+          return {
+            reservation,
+            entry: item !== undefined ? catalog.get(item.itemId) : undefined,
+            touristName: names.get(reservation.touristId) ?? 'Turista',
+          }
+        }),
       )
     } catch (cause) {
       setRows([])
@@ -171,7 +118,7 @@ export default function ReceivedReservationsPage() {
   useEffect(() => {
     void load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [providerId, role])
+  }, [userId, role])
 
   async function runAction(
     reservationId: string,
@@ -211,12 +158,14 @@ export default function ReceivedReservationsPage() {
 
       return (
         row.touristName.toLowerCase().includes(needle) ||
-        row.reservation.id.toLowerCase().includes(needle)
+        row.reservation.code.toLowerCase().includes(needle)
       )
     })
   }, [rows, filterIndex, term])
 
   function actionFor(row: Row) {
+    // Confirmar/rechazar/asistencia/no-show los puede hacer la prestadora o el
+    // guía de la reserva; cancelar queda reservado al turista dueño o a staff.
     if (row.reservation.status === 'PENDING') {
       return (
         <Button
@@ -228,21 +177,6 @@ export default function ReceivedReservationsPage() {
           }
         >
           Confirmar
-        </Button>
-      )
-    }
-
-    if (row.reservation.status === 'CONFIRMED') {
-      return (
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={workingId === row.reservation.id}
-          onClick={() =>
-            void runAction(row.reservation.id, reservationsApi.cancel)
-          }
-        >
-          Cancelar
         </Button>
       )
     }
@@ -259,7 +193,7 @@ export default function ReceivedReservationsPage() {
             {row.entry?.name ?? 'Ítem reservado'}
           </p>
           <p className={tableStyles.userEmail}>
-            #{row.reservation.id.slice(0, 8).toUpperCase()}
+            #{row.reservation.code}
           </p>
         </div>
       ),
@@ -344,14 +278,20 @@ export default function ReceivedReservationsPage() {
         rows={filtered}
         rowKey={(row) => row.reservation.id}
         isLoading={isLoading}
-        loadingMessage="Buscando reservas de tus ítems…"
+        loadingMessage="Cargando reservas recibidas…"
         emptyMessage="No tienes reservas recibidas con estos filtros."
       />
 
       <p className={styles.notice}>
-        El backend no expone reservas por prestadora: aquí se muestran las que
-        contienen ítems tuyos.{' '}
-        <Link to="/app/mis-servicios">Ver mis ítems</Link>
+        Datos reales de <code>/reservations/providers|guides/{'{id}'}</code>.
+        El diseño muestra «Cancelar» en las confirmadas, pero la API solo permite
+        cancelar al turista dueño o a un admin/gestora: aquí la prestadora y el
+        guía confirman, rechazan y registran asistencia o no-show.{' '}
+        <Link
+          to={role === 'GUIDE' ? '/app/mis-actividades' : '/app/mis-servicios'}
+        >
+          {role === 'GUIDE' ? 'Ver mis actividades' : 'Ver mis servicios'}
+        </Link>
       </p>
     </section>
   )

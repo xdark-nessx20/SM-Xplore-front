@@ -9,19 +9,13 @@ import { ROLE_LABELS, STATUS_LABELS, STATUS_TONES } from '@/config/roles'
 import { usersApi } from '@/services/usersApi'
 import { describeApiError } from '@/utils/errors'
 import { formatDateTime } from '@/utils/format'
-import type { UserResponse, UserRole } from '@/types'
+import type { UserResponse } from '@/types'
 import styles from './admin.module.css'
-
-const ROLE_OPTIONS = Object.entries(ROLE_LABELS).map(([value, label]) => ({
-  value,
-  label,
-}))
 
 export default function UserDetailPage() {
   const { userId } = useParams<{ userId: string }>()
 
   const [user, setUser] = useState<UserResponse | null>(null)
-  const [selectedRole, setSelectedRole] = useState<UserRole>('TOURIST')
   const [newPassword, setNewPassword] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isWorking, setIsWorking] = useState(false)
@@ -43,7 +37,6 @@ export default function UserDetailPage() {
         const found = await usersApi.getById(userId as string)
         if (!cancelled) {
           setUser(found)
-          setSelectedRole(found.role)
         }
       } catch (cause) {
         if (!cancelled) {
@@ -71,7 +64,6 @@ export default function UserDetailPage() {
     try {
       const found = await usersApi.getById(userId)
       setUser(found)
-      setSelectedRole(found.role)
     } catch {
       // El refresco es best-effort: la acción ya se confirmó.
     }
@@ -162,50 +154,84 @@ export default function UserDetailPage() {
         </div>
       </article>
 
-      <article className={styles.card}>
-        <h2 className={styles.cardTitle}>Asignar rol</h2>
-        <div className={styles.form}>
-          <select
-            className={styles.select}
-            value={selectedRole}
-            onChange={(event) =>
-              setSelectedRole(event.target.value as UserRole)
-            }
-            aria-label="Rol"
-          >
-            {ROLE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <Button
-            variant="primary"
-            disabled={isWorking}
-            onClick={() =>
-              void run(
-                () => usersApi.assignRole(user.id, { role: selectedRole }),
-                'Rol actualizado.',
-              )
-            }
-          >
-            Guardar rol
-          </Button>
-        </div>
-      </article>
+      {user.status === 'INACTIVE' && (
+        <article className={styles.card}>
+          <h2 className={styles.cardTitle}>Solicitud de registro</h2>
+          <p className={styles.description}>
+            {user.role === 'GUIDE' &&
+              'Guía turístico pendiente de aprobación.'}
+            {user.role === 'DESTINATION_MANAGER' &&
+              'Gestora de destinos pendiente de aprobación.'}
+            {user.role === 'SERVICE_PROVIDER' &&
+              (user.registrationStatus === 'REJECTED'
+                ? 'El registro de esta prestadora fue rechazado.'
+                : 'Prestadora pendiente de aprobación: revisa su solicitud y documentos.')}
+          </p>
+          <div className={styles.form}>
+            {user.role === 'GUIDE' && (
+              <Button
+                variant="primary"
+                disabled={isWorking}
+                onClick={() =>
+                  void run(
+                    () => usersApi.approveGuide(user.id),
+                    'Guía aprobado: la cuenta quedó activa.',
+                  )
+                }
+              >
+                Aprobar guía
+              </Button>
+            )}
+            {user.role === 'DESTINATION_MANAGER' && (
+              <Button
+                variant="primary"
+                disabled={isWorking}
+                onClick={() =>
+                  void run(
+                    () => usersApi.approveManager(user.id),
+                    'Gestora aprobada: la cuenta quedó activa.',
+                  )
+                }
+              >
+                Aprobar gestora
+              </Button>
+            )}
+            {user.role === 'SERVICE_PROVIDER' && (
+              <Link to={`/app/usuarios/prestadoras/${user.id}`}>
+                <Button variant="primary">Revisar solicitud</Button>
+              </Link>
+            )}
+          </div>
+        </article>
+      )}
 
       <article className={styles.card}>
         <h2 className={styles.cardTitle}>Estado de la cuenta</h2>
         <p className={styles.description}>
-          El backend solo permite bloquear o suspender una cuenta desde aquí.
+          El backend permite reactivar, bloquear o suspender una cuenta. El
+          cambio de rol no está soportado: cada rol tiene su propio perfil.
         </p>
         <div className={styles.form}>
+          {(user.status === 'BLOCKED' || user.status === 'SUSPENDED') && (
+            <Button
+              variant="primary"
+              disabled={isWorking}
+              onClick={() =>
+                void run(
+                  () => usersApi.changeStatus(user.id, { status: 'ACTIVE' }),
+                  'Cuenta reactivada.',
+                )
+              }
+            >
+              Reactivar
+            </Button>
+          )}
           <Button
             variant="outline"
-            disabled={isWorking}
+            disabled={isWorking || user.status === 'BLOCKED'}
             onClick={() =>
               void run(
-                () => usersApi.block(user.id, { status: 'BLOCKED' }),
+                () => usersApi.changeStatus(user.id, { status: 'BLOCKED' }),
                 'Cuenta bloqueada.',
               )
             }
@@ -214,10 +240,10 @@ export default function UserDetailPage() {
           </Button>
           <Button
             variant="outline"
-            disabled={isWorking}
+            disabled={isWorking || user.status === 'SUSPENDED'}
             onClick={() =>
               void run(
-                () => usersApi.block(user.id, { status: 'SUSPENDED' }),
+                () => usersApi.changeStatus(user.id, { status: 'SUSPENDED' }),
                 'Cuenta suspendida.',
               )
             }

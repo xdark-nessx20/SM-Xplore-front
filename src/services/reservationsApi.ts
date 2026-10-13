@@ -1,5 +1,7 @@
 import { httpClient } from './httpClient'
 import type {
+  ReceivedReservationsFilters,
+  ReservationByItemFilters,
   ReservationByTouristFilters,
   ReservationItemListFilters,
   ReservationItemRequest,
@@ -34,6 +36,34 @@ export const reservationsApi = {
       `/reservations/tourists/${touristId}`,
       { query: { limit } },
     ),
+
+  /** `GET /api/v1/reservations/providers/{providerId}?status=&limit=` — la propia prestadora o staff. */
+  listByProvider: (
+    providerId: string,
+    { status, limit }: ReceivedReservationsFilters = {},
+  ) =>
+    httpClient.get<ReservationResponse[]>(
+      `/reservations/providers/${providerId}`,
+      { query: { status, limit } },
+    ),
+
+  /** `GET /api/v1/reservations/guides/{guideId}?status=&limit=` — el propio guía o staff. */
+  listByGuide: (
+    guideId: string,
+    { status, limit }: ReceivedReservationsFilters = {},
+  ) =>
+    httpClient.get<ReservationResponse[]>(`/reservations/guides/${guideId}`, {
+      query: { status, limit },
+    }),
+
+  /**
+   * `GET /api/v1/reservations/by-item?itemType=&itemId=&limit=` — reservas que
+   * contienen una actividad o un servicio (la propia guía/prestadora o staff).
+   */
+  listByItem: ({ itemType, itemId, limit }: ReservationByItemFilters) =>
+    httpClient.get<ReservationResponse[]>('/reservations/by-item', {
+      query: { itemType, itemId, limit },
+    }),
 
   /** `PATCH /api/v1/reservations/{reservationId}/confirm` */
   confirm: (reservationId: string) =>

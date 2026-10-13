@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { Avatar } from '@/components/Avatar/Avatar'
 import { Button } from '@/components/Button'
+import { DefList } from '@/components/DefList/DefList'
+import type { DefItem } from '@/components/DefList/DefList'
 import { PageHeader } from '@/components/PageHeader/PageHeader'
 import { StatusBadge } from '@/components/StatusBadge/StatusBadge'
+import { useAuth } from '@/hooks/useAuth'
 import { activitiesApi } from '@/services/activitiesApi'
 import { usersApi } from '@/services/usersApi'
 import { describeApiError } from '@/utils/errors'
@@ -13,6 +16,8 @@ import styles from './profile.module.css'
 
 export default function GuideProfilePage() {
   const { guideId } = useParams<{ guideId: string }>()
+  const { isAuthenticated } = useAuth()
+  const { pathname } = useLocation()
 
   const [guide, setGuide] = useState<GuideProfileResponse | null>(null)
   const [activities, setActivities] = useState<ActivityResponse[]>([])
@@ -75,6 +80,14 @@ export default function GuideProfilePage() {
       </section>
     )
   }
+
+  // El backend oculta el contacto a las peticiones anónimas.
+  const contactReserved = guide.email === null && guide.phone === null
+
+  const contactItems: DefItem[] = [
+    { label: 'Teléfono', value: guide.phone ?? '—' },
+    { label: 'Correo', value: guide.email ?? '—' },
+  ]
 
   return (
     <section className={styles.page}>
@@ -158,6 +171,20 @@ export default function GuideProfilePage() {
         </div>
 
         <div className={styles.column}>
+          <article className={styles.card}>
+            <h2 className={styles.cardTitle}>Información de contacto</h2>
+            <DefList items={contactItems} columns={1} />
+            {contactReserved && !isAuthenticated && (
+              <p className={styles.notice}>
+                El teléfono y el correo solo se entregan con sesión iniciada.{' '}
+                <Link to="/login" state={{ from: { pathname } }}>
+                  Inicia sesión
+                </Link>{' '}
+                para verlos.
+              </p>
+            )}
+          </article>
+
           <article className={styles.card}>
             <h2 className={styles.cardTitle}>Reseñas recientes</h2>
             <p className={styles.empty}>

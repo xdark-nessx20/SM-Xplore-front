@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { Avatar } from '@/components/Avatar/Avatar'
 import { Button } from '@/components/Button'
 import { DefList } from '@/components/DefList/DefList'
@@ -7,6 +7,7 @@ import type { DefItem } from '@/components/DefList/DefList'
 import { PageHeader } from '@/components/PageHeader/PageHeader'
 import { StatusBadge } from '@/components/StatusBadge/StatusBadge'
 import { SERVICE_TYPE_LABELS } from '@/config/roles'
+import { useAuth } from '@/hooks/useAuth'
 import { servicesApi } from '@/services/servicesApi'
 import { usersApi } from '@/services/usersApi'
 import { describeApiError } from '@/utils/errors'
@@ -16,6 +17,8 @@ import styles from './profile.module.css'
 
 export default function ProviderProfilePage() {
   const { providerId } = useParams<{ providerId: string }>()
+  const { isAuthenticated } = useAuth()
+  const { pathname } = useLocation()
 
   const [provider, setProvider] =
     useState<ServiceProviderProfileResponse | null>(null)
@@ -84,11 +87,14 @@ export default function ProviderProfilePage() {
       : '—'
 
   const contactItems: DefItem[] = [
-    { label: 'Teléfono', value: provider.phone },
-    { label: 'Correo', value: provider.email },
+    { label: 'Teléfono', value: provider.phone ?? '—' },
+    { label: 'Correo', value: provider.email ?? '—' },
     { label: 'Horario', value: '—' },
     { label: 'Ubicación', value: location },
   ]
+
+  // El backend oculta el contacto a las peticiones anónimas.
+  const contactReserved = provider.phone === null && provider.email === null
 
   return (
     <section className={styles.page}>
@@ -178,6 +184,15 @@ export default function ProviderProfilePage() {
           <article className={styles.card}>
             <h2 className={styles.cardTitle}>Información de contacto</h2>
             <DefList items={contactItems} columns={1} />
+            {contactReserved && !isAuthenticated && (
+              <p className={styles.notice}>
+                El teléfono y el correo solo se entregan con sesión iniciada.{' '}
+                <Link to="/login" state={{ from: { pathname } }}>
+                  Inicia sesión
+                </Link>{' '}
+                para verlos.
+              </p>
+            )}
           </article>
 
           <article className={styles.card}>

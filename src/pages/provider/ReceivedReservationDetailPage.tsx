@@ -106,7 +106,7 @@ export default function ReceivedReservationDetailPage() {
 
   const current = reservation
   const subtotal = items.reduce((sum, item) => sum + item.price, 0)
-  const shortId = current.id.slice(0, 8).toUpperCase()
+  const code = current.code
 
   const infoItems: DefItem[] = [
     {
@@ -144,9 +144,7 @@ export default function ReceivedReservationDetailPage() {
   const canReject = current.status === 'PENDING'
   const canAttendance = current.status === 'CONFIRMED'
   const canNoShow = current.status === 'CONFIRMED'
-  const canCancel =
-    current.status === 'CONFIRMED' ||
-    current.status === 'CANCELLATION_REQUESTED'
+  const hasActions = canConfirm || canReject || canAttendance || canNoShow
 
   return (
     <div>
@@ -158,9 +156,9 @@ export default function ReceivedReservationDetailPage() {
         breadcrumb={[
           { label: 'Reservas', to: '/app/reservas-recibidas' },
           { label: 'Recibidas', to: '/app/reservas-recibidas' },
-          { label: `#${shortId}` },
+          { label: `#${code}` },
         ]}
-        title={`Reserva ${shortId}`}
+        title={`Reserva ${code}`}
         description={`Creada el ${formatDate(current.bookedAt)}`}
         actions={
           <StatusBadge tone={RESERVATION_STATUS_TONES[current.status]}>
@@ -295,30 +293,19 @@ export default function ReceivedReservationDetailPage() {
                   No se presentó
                 </Button>
               )}
-              {canCancel && (
-                <Button
-                  variant="outline"
-                  disabled={isWorking}
-                  onClick={() =>
-                    void runAction(
-                      reservationsApi.cancel,
-                      'Reserva cancelada.',
-                    )
-                  }
-                >
-                  Cancelar reserva
-                </Button>
+              {current.status === 'CANCELLATION_REQUESTED' && (
+                <p className={styles.actionsNote}>
+                  El turista solicitó cancelar la reserva. Solo el turista o un
+                  admin/gestora pueden completar la cancelación; cancelar no
+                  está disponible para prestadoras ni guías.
+                </p>
               )}
 
-              {!canConfirm &&
-                !canReject &&
-                !canAttendance &&
-                !canNoShow &&
-                !canCancel && (
-                  <p className={styles.actionsNote}>
-                    Esta reserva ya está cerrada: no hay acciones disponibles.
-                  </p>
-                )}
+              {!hasActions && current.status !== 'CANCELLATION_REQUESTED' && (
+                <p className={styles.actionsNote}>
+                  Esta reserva ya está cerrada: no hay acciones disponibles.
+                </p>
+              )}
             </div>
           </article>
         </div>

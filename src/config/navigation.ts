@@ -3,6 +3,11 @@ import type { UserRole } from '@/types'
 export interface NavItem {
   /** Ruta dentro del shell autenticado. */
   to: string
+  /**
+   * Rutas alternativas en el shell público según el rol: el turista (y, para
+   * reportes, también guía y prestadora) vive fuera del panel.
+   */
+  publicTo?: Partial<Record<UserRole, string>>
   label: string
   /** Qué debe ofrecer esta sección (se usa como texto provisional hasta tener los wireframes). */
   description: string
@@ -54,14 +59,14 @@ export const NAV_ITEMS: NavItem[] = [
     to: '/app/reservas-recibidas',
     label: 'Reservas recibidas',
     description:
-      'Reservas asociadas a los ítems de la prestadora: confirmar, rechazar o marcar asistencia.',
+      'Reservas recibidas por la prestadora o el guía: confirmar, rechazar, asistencia y no-show.',
     roles: ['SERVICE_PROVIDER', 'GUIDE'],
   },
   {
     to: '/app/zonas',
     label: 'Zonas',
     description:
-      'Zonas turísticas con sus sitios, capacidad, afluencia y estado de congestión.',
+      'Zonas turísticas y los sitios (atractivos) que agrupan, con su ubicación y fotos.',
     roles: ['DESTINATION_MANAGER'],
   },
   {
@@ -75,11 +80,16 @@ export const NAV_ITEMS: NavItem[] = [
     to: '/app/usuarios',
     label: 'Usuarios',
     description:
-      'Búsqueda de usuarios, asignación de roles, bloqueo y restablecimiento de contraseña.',
+      'Registros pendientes de aprobación, búsqueda de usuarios, bloqueo, reactivación y restablecimiento de contraseña.',
     roles: ['ADMIN'],
   },
   {
     to: '/app/reportes',
+    publicTo: {
+      TOURIST: '/reportes',
+      GUIDE: '/reportes',
+      SERVICE_PROVIDER: '/reportes',
+    },
     label: 'Reportes de seguridad',
     description:
       'Reportar incidentes de seguridad, seguimiento de estado, fotos y comentarios.',
@@ -93,6 +103,7 @@ export const NAV_ITEMS: NavItem[] = [
   },
   {
     to: '/app/perfil',
+    publicTo: { TOURIST: '/perfil' },
     label: 'Mi perfil',
     description:
       'Datos personales, actualización del perfil, cambio de contraseña y eliminación de la cuenta.',
@@ -106,9 +117,12 @@ export const NAV_ITEMS: NavItem[] = [
   },
 ]
 
-/** Secciones visibles para un rol. */
+/** Secciones visibles para un rol; algunos roles navegan por el shell público. */
 export function navItemsFor(role: UserRole): NavItem[] {
-  return NAV_ITEMS.filter((item) => item.roles.includes(role))
+  return NAV_ITEMS.filter((item) => item.roles.includes(role)).map((item) => {
+    const alternative = item.publicTo?.[role]
+    return alternative !== undefined ? { ...item, to: alternative } : item
+  })
 }
 
 export interface PublicNavItem {

@@ -7,7 +7,13 @@ import { useAuth } from '@/hooks/useAuth'
 import styles from './PublicLayout.module.css'
 
 /** Rutas del catálogo: en los mockups usan barra navy con buscador teal. */
-const CATALOG_PREFIXES = ['/explorar', '/actividades', '/eventos', '/servicios']
+const CATALOG_PREFIXES = [
+  '/atractivos',
+  '/explorar',
+  '/actividades',
+  '/eventos',
+  '/servicios',
+]
 
 /**
  * Shell de las páginas públicas: barra superior con buscador, contenido y pie.

@@ -10,9 +10,17 @@ import { useAuth } from '@/hooks/useAuth'
 import { useItinerary } from '@/hooks/useItinerary'
 import { eventsApi } from '@/services/eventsApi'
 import { reservationsApi } from '@/services/reservationsApi'
+import { sitesApi } from '@/services/sitesApi'
+import { zonesApi } from '@/services/zonesApi'
 import { describeApiError } from '@/utils/errors'
 import { formatCurrency, formatDate, formatDateTime } from '@/utils/format'
-import type { EventResponse, PaymentMethod, ReservationResponse } from '@/types'
+import type {
+  EventResponse,
+  PaymentMethod,
+  ReservationResponse,
+  Site,
+  Zone,
+} from '@/types'
 import styles from './events.module.css'
 
 function formatTime(value: string): string {
@@ -34,6 +42,8 @@ export default function EventDetailPage() {
   const location = useLocation()
 
   const [event, setEvent] = useState<EventResponse | null>(null)
+  const [site, setSite] = useState<Site | null>(null)
+  const [zone, setZone] = useState<Zone | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -55,9 +65,29 @@ export default function EventDetailPage() {
     async function run() {
       try {
         const found = await eventsApi.getById(eventId as string)
-        if (!cancelled) {
-          setEvent(found)
-          setError(null)
+        if (cancelled) return
+
+        setEvent(found)
+        setError(null)
+
+        // Lugar y zona del evento (si el sitio sigue publicado).
+        const [siteResult, zonesResult] = await Promise.allSettled([
+          sitesApi.getById(found.siteId),
+          zonesApi.list(),
+        ])
+
+        if (cancelled) return
+
+        if (siteResult.status === 'fulfilled') {
+          setSite(siteResult.value)
+
+          if (zonesResult.status === 'fulfilled') {
+            setZone(
+              zonesResult.value.find(
+                (item) => item.id === siteResult.value.zoneId,
+              ) ?? null,
+            )
+          }
         }
       } catch (cause) {
         if (!cancelled) setError(describeApiError(cause))
@@ -100,6 +130,8 @@ export default function EventDetailPage() {
     { label: 'Fecha', value: formatDateTime(event.startsAt) },
     { label: 'Finaliza', value: formatDateTime(event.endsAt) },
     { label: 'Categoría', value: event.category },
+    ...(site !== null ? [{ label: 'Lugar', value: site.name }] : []),
+    ...(zone !== null ? [{ label: 'Zona', value: zone.name }] : []),
     { label: 'Aforo', value: `${event.maxCapacity} personas` },
     {
       label: 'Afluencia esperada',
@@ -200,8 +232,8 @@ export default function EventDetailPage() {
             <h2 className={styles.cardTitle}>Información del evento</h2>
             <DefList items={infoItems} />
             <p className={styles.notice}>
-              Zona, lugar, organizador, contacto e imagen del evento aparecen en
-              el diseño pero el backend no los guarda.
+              El organizador, el contacto y la imagen del evento aparecen en el
+              diseño pero el backend todavía no los almacena.
             </p>
           </article>
         </div>

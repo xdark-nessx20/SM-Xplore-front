@@ -28,7 +28,8 @@ import styles from './reservations.module.css'
 interface ContactInfo {
   name: string
   role: UserRole
-  email: string
+  /** El backend lo entrega solo con sesión iniciada. */
+  email: string | null
 }
 
 function formatTime(value: string): string {
@@ -143,7 +144,7 @@ export default function ReservationDetailPage() {
   const first = items[0]
   const entry = first !== undefined ? lookup.get(first.itemId) : undefined
   const subtotal = items.reduce((sum, item) => sum + item.price, 0)
-  const shortId = reservation.id.slice(0, 8).toUpperCase()
+  const code = reservation.code
   const canRequestCancellation =
     reservation.status === 'PENDING' || reservation.status === 'CONFIRMED'
 
@@ -189,9 +190,9 @@ export default function ReservationDetailPage() {
         breadcrumb={[
           { label: 'Inicio', to: '/explorar' },
           { label: 'Mis reservas', to: '/mis-reservas' },
-          { label: `#${shortId}` },
+          { label: `#${code}` },
         ]}
-        title={`Reserva ${shortId}`}
+        title={`Reserva ${code}`}
         description={`Creada el ${formatDate(reservation.bookedAt)}`}
         actions={
           <StatusBadge tone={RESERVATION_STATUS_TONES[reservation.status]}>
@@ -246,7 +247,8 @@ export default function ReservationDetailPage() {
                 <div>
                   <p className={styles.contactName}>{contact.name}</p>
                   <p className={styles.contactMeta}>
-                    {ROLE_LABELS[contact.role]} · {contact.email}
+                    {ROLE_LABELS[contact.role]} ·{' '}
+                    {contact.email ?? 'Correo no disponible'}
                   </p>
                 </div>
               </div>

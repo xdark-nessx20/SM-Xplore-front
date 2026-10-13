@@ -12,11 +12,11 @@ export interface AuthContextValue {
   /** Inicia sesión contra `/api/v1/auth/login`. */
   login: (credentials: LoginRequest) => Promise<UserResponse>
   /**
-   * Registra un usuario. Los turistas quedan con la sesión iniciada;
-   * las prestadoras quedan pendientes de aprobación y sin sesión.
+   * Registra un usuario. Los turistas quedan con la sesión iniciada; guías,
+   * prestadoras y gestoras quedan pendientes de aprobación y sin sesión.
    */
   register: (payload: RegisterUserRequest) => Promise<UserResponse>
-  /** Cierra la sesión local (el prototipo no maneja tokens). */
+  /** Cierra la sesión local y borra el token guardado. */
   logout: () => void
   /** Refresca el usuario guardado tras editar el perfil. */
   updateSessionUser: (user: UserResponse) => void

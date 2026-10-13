@@ -25,6 +25,20 @@ export interface EventRequest {
   description?: string
 }
 
+/**
+ * `PUT /events/{eventId}` — actualiza los detalles del evento. El atractivo
+ * (`siteId`) no se cambia aquí: se define al crearlo.
+ */
+export interface UpdateEventRequest {
+  name: string
+  category: string
+  price: number
+  maxCapacity: number
+  startsAt: string
+  endsAt: string
+  description?: string
+}
+
 export interface ChangeEventStatusRequest {
   status: EventStatus
 }

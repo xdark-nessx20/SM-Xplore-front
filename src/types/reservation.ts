@@ -15,7 +15,12 @@ export type ReservationItemType = 'EVENT' | 'ACTIVITY' | 'SERVICE'
 
 export interface ReservationResponse {
   id: string
+  /** Código legible de la reserva, p. ej. `R-1024`. */
+  code: string
   touristId: string
+  /** Prestadora y guía resueltos por el backend al añadir los ítems. */
+  providerId: string | null
+  guideId: string | null
   numberOfPeople: number
   total: number
   paymentMethod: PaymentMethod
@@ -62,6 +67,18 @@ export interface ReservationListFilters {
 }
 
 export interface ReservationByTouristFilters {
+  limit?: QueryLimit
+}
+
+/** Filtros de las reservas recibidas por una prestadora o un guía. */
+export interface ReceivedReservationsFilters {
+  status?: ReservationStatus
+  limit?: QueryLimit
+}
+
+export interface ReservationByItemFilters {
+  itemType: ReservationItemType
+  itemId: string
   limit?: QueryLimit
 }
 

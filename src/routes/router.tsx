@@ -1,6 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { Placeholder } from '@/components/Placeholder'
-import { NAV_ITEMS, PUBLIC_NAV } from '@/config/navigation'
+import { NAV_ITEMS } from '@/config/navigation'
 import { AppLayout } from '@/layouts/AppLayout'
 import { PublicLayout } from '@/layouts/PublicLayout'
 import DashboardPage from '@/pages/DashboardPage'
@@ -12,6 +12,10 @@ import LoginPage from '@/pages/auth/LoginPage'
 import RegisterPage from '@/pages/auth/RegisterPage'
 import ActivityDetailPage from '@/pages/catalog/ActivityDetailPage'
 import ExplorePage from '@/pages/catalog/ExplorePage'
+import ServiceDetailPage from '@/pages/catalog/ServiceDetailPage'
+import ServiceListPage from '@/pages/catalog/ServiceListPage'
+import SiteDetailPage from '@/pages/catalog/SiteDetailPage'
+import SiteListPage from '@/pages/catalog/SiteListPage'
 import EventDetailPage from '@/pages/events/EventDetailPage'
 import EventFormPage from '@/pages/events/EventFormPage'
 import EventListPage from '@/pages/events/EventListPage'
@@ -66,22 +70,6 @@ const sectionRoutes = NAV_ITEMS.filter(
   ),
 }))
 
-/** Rutas del catálogo público que ya tienen pantalla propia. */
-const IMPLEMENTED_PUBLIC = new Set(['/explorar', '/eventos'])
-
-/** El resto del catálogo queda provisional. */
-const publicRoutes = PUBLIC_NAV.filter(
-  (item) => !IMPLEMENTED_PUBLIC.has(item.to),
-).map((item) => ({
-  path: item.to,
-  element: (
-    <Placeholder
-      title={item.label}
-      description={`Catálogo público de ${item.label.toLowerCase()}: listado con filtros, tarjetas y detalle.`}
-    />
-  ),
-}))
-
 export const router = createBrowserRouter([
   {
     path: '/',
@@ -90,7 +78,6 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to="/explorar" replace /> },
       { path: 'login', element: <LoginPage /> },
       { path: 'registro', element: <RegisterPage /> },
-      ...publicRoutes,
       /* Catálogo de actividades (mockups 06-UC2/UC7/UC8 y 06-UC9) */
       { path: 'explorar', element: <ExplorePage /> },
       { path: 'actividades', element: <Navigate to="/explorar" replace /> },
@@ -108,18 +95,15 @@ export const router = createBrowserRouter([
         ),
       },
       { path: 'eventos/:eventId', element: <EventDetailPage /> },
+      /* Catálogo de atractivos (sin mockup: patrón del catálogo de actividades) */
+      { path: 'atractivos', element: <SiteListPage /> },
+      { path: 'atractivos/:siteId', element: <SiteDetailPage /> },
+      /* Catálogo de servicios (sin mockup: patrón del catálogo de actividades) */
+      { path: 'servicios', element: <ServiceListPage /> },
+      { path: 'servicios/:serviceId', element: <ServiceDetailPage /> },
       /* Perfiles públicos que consulta el turista (wireframes 12-UC4 y 12-UC5) */
       { path: 'guias/:guideId', element: <GuideProfilePage /> },
       { path: 'prestadoras/:providerId', element: <ProviderProfilePage /> },
-      {
-        path: 'servicios/:serviceId',
-        element: (
-          <Placeholder
-            title="Detalle de servicio"
-            description="Ficha del servicio turístico, fotos, atributos extra y reserva."
-          />
-        ),
-      },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
@@ -148,11 +132,11 @@ export const router = createBrowserRouter([
         ),
       },
       { path: 'perfil', element: <MyProfilePage /> },
-      /* Reportes de seguridad del turista (wireframe 13: UC1/UC2/UC3/UC5) */
+      /* Reportes de seguridad (wireframe 13: UC1/UC2/UC3/UC5) — turista, guía y prestadora */
       {
         path: 'reportes',
         element: (
-          <RequireRole roles={['TOURIST']}>
+          <RequireRole roles={['TOURIST', 'GUIDE', 'SERVICE_PROVIDER']}>
             <MyReportsPage />
           </RequireRole>
         ),
@@ -160,7 +144,7 @@ export const router = createBrowserRouter([
       {
         path: 'reportes/nuevo',
         element: (
-          <RequireRole roles={['TOURIST']}>
+          <RequireRole roles={['TOURIST', 'GUIDE', 'SERVICE_PROVIDER']}>
             <ReportFormPage />
           </RequireRole>
         ),
@@ -168,7 +152,7 @@ export const router = createBrowserRouter([
       {
         path: 'reportes/:reportId',
         element: (
-          <RequireRole roles={['TOURIST']}>
+          <RequireRole roles={['TOURIST', 'GUIDE', 'SERVICE_PROVIDER']}>
             <ReportDetailPage />
           </RequireRole>
         ),
@@ -179,15 +163,6 @@ export const router = createBrowserRouter([
           <RequireRole roles={['TOURIST']}>
             <ItineraryPage />
           </RequireRole>
-        ),
-      },
-      {
-        path: 'reportes',
-        element: (
-          <Placeholder
-            title="Reportes de seguridad"
-            description="Reportar incidentes, seguimiento de estado, fotos y comentarios."
-          />
         ),
       },
     ],
@@ -327,11 +302,11 @@ export const router = createBrowserRouter([
           </RequireRole>
         ),
       },
-      /* Zonas y sitios (wireframes 11) — sin API todavía, capa local */
+      /* Zonas y sitios (wireframes 11) — API real `/zones` y `/sites` */
       {
         path: 'zonas',
         element: (
-          <RequireRole roles={['DESTINATION_MANAGER']}>
+          <RequireRole roles={['DESTINATION_MANAGER', 'ADMIN']}>
             <ZonesListPage />
           </RequireRole>
         ),
@@ -339,7 +314,7 @@ export const router = createBrowserRouter([
       {
         path: 'zonas/nueva',
         element: (
-          <RequireRole roles={['DESTINATION_MANAGER']}>
+          <RequireRole roles={['DESTINATION_MANAGER', 'ADMIN']}>
             <ZoneFormPage />
           </RequireRole>
         ),
@@ -347,7 +322,7 @@ export const router = createBrowserRouter([
       {
         path: 'zonas/:zoneId',
         element: (
-          <RequireRole roles={['DESTINATION_MANAGER']}>
+          <RequireRole roles={['DESTINATION_MANAGER', 'ADMIN']}>
             <ZoneFormPage />
           </RequireRole>
         ),
@@ -356,6 +331,9 @@ export const router = createBrowserRouter([
         path: 'perfil',
         element: <MyProfilePage />,
       },
+      /* El turista vive en el shell público: estas rutas duplicadas redirigen. */
+      { path: 'explorar', element: <Navigate to="/explorar" replace /> },
+      { path: 'mis-reservas', element: <Navigate to="/mis-reservas" replace /> },
       {
         path: 'usuarios/:userId',
         element: (

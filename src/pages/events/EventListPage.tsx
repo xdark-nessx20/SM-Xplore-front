@@ -5,9 +5,11 @@ import { PageHeader } from '@/components/PageHeader/PageHeader'
 import { Pagination } from '@/components/Pagination/Pagination'
 import { useAuth } from '@/hooks/useAuth'
 import { eventsApi } from '@/services/eventsApi'
+import { sitesApi } from '@/services/sitesApi'
+import { zonesApi } from '@/services/zonesApi'
 import { describeApiError } from '@/utils/errors'
 import { formatCurrency } from '@/utils/format'
-import type { EventResponse } from '@/types'
+import type { EventResponse, Site, Zone } from '@/types'
 import styles from './events.module.css'
 
 const PAGE_SIZE = 6
@@ -30,6 +32,8 @@ export default function EventListPage() {
   const { user, isAuthenticated } = useAuth()
 
   const [events, setEvents] = useState<EventResponse[]>([])
+  const [zones, setZones] = useState<Zone[]>([])
+  const [sites, setSites] = useState<Site[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
@@ -39,19 +43,35 @@ export default function EventListPage() {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [category, setCategory] = useState('')
+  const [zoneId, setZoneId] = useState('')
   const [draftTerm, setDraftTerm] = useState('')
   const [draftFrom, setDraftFrom] = useState('')
   const [draftTo, setDraftTo] = useState('')
   const [draftCategory, setDraftCategory] = useState('')
+  const [draftZoneId, setDraftZoneId] = useState('')
 
   useEffect(() => {
     let cancelled = false
 
     async function run() {
       try {
-        const all = await eventsApi.list()
+        const [eventsResult, zonesResult, sitesResult] =
+          await Promise.allSettled([
+            eventsApi.list(),
+            zonesApi.list(),
+            sitesApi.list(),
+          ])
+
+        if (eventsResult.status === 'rejected') {
+          throw eventsResult.reason
+        }
+
         if (!cancelled) {
-          setEvents(all.filter((event) => event.status === 'PUBLISHED'))
+          setEvents(
+            eventsResult.value.filter((event) => event.status === 'PUBLISHED'),
+          )
+          setZones(zonesResult.status === 'fulfilled' ? zonesResult.value : [])
+          setSites(sitesResult.status === 'fulfilled' ? sitesResult.value : [])
           setError(null)
         }
       } catch (cause) {
@@ -76,6 +96,29 @@ export default function EventListPage() {
     [events],
   )
 
+  const zoneOptions = useMemo(
+    () => [...zones].sort((a, b) => a.name.localeCompare(b.name, 'es')),
+    [zones],
+  )
+
+  const zoneSiteIds = useMemo(() => {
+    const map = new Map<string, Set<string>>()
+    for (const site of sites) {
+      const current = map.get(site.zoneId) ?? new Set<string>()
+      current.add(site.id)
+      map.set(site.zoneId, current)
+    }
+    return map
+  }, [sites])
+
+  const siteNameById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const site of sites) {
+      map.set(site.id, site.name)
+    }
+    return map
+  }, [sites])
+
   const filtered = useMemo(() => {
     const needle = term.trim().toLowerCase()
 
@@ -85,6 +128,9 @@ export default function EventListPage() {
           return false
         }
         if (category !== '' && event.category !== category) {
+          return false
+        }
+        if (zoneId !== '' && !zoneSiteIds.get(zoneId)?.has(event.siteId)) {
           return false
         }
         if (from !== '' && new Date(event.startsAt) < new Date(`${from}T00:00:00`)) {
@@ -99,7 +145,7 @@ export default function EventListPage() {
         (a, b) =>
           new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
       )
-  }, [events, term, category, from, to])
+  }, [events, term, category, zoneId, zoneSiteIds, from, to])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const visible = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -109,6 +155,7 @@ export default function EventListPage() {
     setFrom(draftFrom)
     setTo(draftTo)
     setCategory(draftCategory)
+    setZoneId(draftZoneId)
     setPage(1)
   }
 
@@ -147,8 +194,18 @@ export default function EventListPage() {
 
         <label>
           <span className={styles.fieldLabel}>Zona</span>
-          <select className={styles.control} disabled>
-            <option>Todas las zonas</option>
+          <select
+            className={styles.control}
+            value={draftZoneId}
+            disabled={zoneOptions.length === 0}
+            onChange={(event) => setDraftZoneId(event.target.value)}
+          >
+            <option value="">Todas las zonas</option>
+            {zoneOptions.map((zone) => (
+              <option key={zone.id} value={zone.id}>
+                {zone.name}
+              </option>
+            ))}
           </select>
         </label>
         <label>
@@ -216,7 +273,9 @@ export default function EventListPage() {
                 <div className={styles.body}>
                   <h2 className={styles.title}>{event.name}</h2>
                   <p className={styles.meta}>
-                    {event.category} · {time} · aforo {event.maxCapacity}
+                    {event.category} · {time} ·{' '}
+                    {siteNameById.get(event.siteId) ?? 'Lugar por confirmar'} ·
+                    aforo {event.maxCapacity}
                   </p>
                 </div>
 
@@ -239,9 +298,8 @@ export default function EventListPage() {
       <Pagination page={page} totalPages={totalPages} onChange={setPage} />
 
       <p className={styles.notice}>
-        Del diseño faltan: filtro por zona (el backend no expone sitios), la
-        miniatura (los eventos no guardan fotos), el lugar y el toggle
-        lista/calendario.
+        Del diseño faltan: la miniatura (los eventos no guardan fotos) y el
+        toggle lista/calendario.
       </p>
     </div>
   )

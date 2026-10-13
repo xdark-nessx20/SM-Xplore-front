@@ -70,20 +70,29 @@ async function request<T>(
     headers.set('Content-Type', 'application/json')
   }
 
-  // Todos los endpoints salvo login/register/recover exigen el token.
-  const currentToken = loadToken()
-  if (currentToken !== null) {
-    headers.set('Authorization', `Bearer ${currentToken}`)
+  const url = `${BASE_URL}${path}${buildQuery(query)}`
+  const payload = body === undefined ? undefined : JSON.stringify(body)
+
+  function send(token: string | null): Promise<Response> {
+    const attemptHeaders = new Headers(headers)
+    if (token !== null) {
+      attemptHeaders.set('Authorization', `Bearer ${token}`)
+    }
+
+    return fetch(url, { ...rest, headers: attemptHeaders, body: payload })
   }
 
-  const response = await fetch(`${BASE_URL}${path}${buildQuery(query)}`, {
-    ...rest,
-    headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
-  })
+  const token = loadToken()
+  let response = await send(token)
 
   if (response.status === 401) {
     notifyUnauthorized()
+
+    // La sesión ya no sirve (expirada o revocada). El catálogo público no
+    // exige token, así que se reintenta sin él antes de dar el 401 por perdido.
+    if (token !== null) {
+      response = await send(null)
+    }
   }
 
   if (!response.ok) {

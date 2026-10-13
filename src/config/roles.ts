@@ -144,5 +144,10 @@ export const RESERVATION_STATUS_TONES: Record<ReservationStatus, BadgeTone> = {
   COMPLETED: 'success',
 }
 
-/** Roles que el backend permite auto-registrar (el resto da 400). */
-export const REGISTERABLE_ROLES: UserRole[] = ['TOURIST', 'SERVICE_PROVIDER']
+/** Roles que el backend permite auto-registrar. */
+export const REGISTERABLE_ROLES: UserRole[] = [
+  'TOURIST',
+  'GUIDE',
+  'SERVICE_PROVIDER',
+  'DESTINATION_MANAGER',
+]

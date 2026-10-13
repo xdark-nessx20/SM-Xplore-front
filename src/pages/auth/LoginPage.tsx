@@ -19,7 +19,7 @@ function describeAuthError(error: unknown): string {
       case 401:
         return 'Correo o contraseña incorrectos. Intenta de nuevo.'
       case 403:
-        return 'La cuenta no está activa. Las prestadoras de servicios deben esperar la aprobación.'
+        return 'La cuenta no está activa: guías, prestadoras y gestoras deben esperar la aprobación de un administrador.'
       case 400:
         return `Datos inválidos: ${error.message}`
       default:

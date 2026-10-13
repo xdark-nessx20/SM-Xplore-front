@@ -4,13 +4,11 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/Button'
 import { Field } from '@/components/FormField'
 import { PageHeader } from '@/components/PageHeader/PageHeader'
-import { useAuth } from '@/hooks/useAuth'
 import { securityReportsApi } from '@/services/securityReportsApi'
 import { describeApiError } from '@/utils/errors'
 import styles from './reports.module.css'
 
 export default function ReportFormPage() {
-  const { user } = useAuth()
   const navigate = useNavigate()
 
   const [text, setText] = useState('')
@@ -41,11 +39,6 @@ export default function ReportFormPage() {
 
   async function handleSubmit(formEvent: FormEvent<HTMLFormElement>) {
     formEvent.preventDefault()
-
-    if (user === null) {
-      return
-    }
-
     setIsSaving(true)
     setError(null)
 
@@ -57,8 +50,8 @@ export default function ReportFormPage() {
 
       const hasLocation = latitude.trim() !== '' && longitude.trim() !== ''
 
+      // El autor lo toma el backend del token de sesión.
       await securityReportsApi.create({
-        user: { id: user.id, name: user.fullName },
         text: text.trim(),
         location: hasLocation
           ? {

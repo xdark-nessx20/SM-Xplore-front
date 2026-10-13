@@ -17,8 +17,16 @@ import {
   toTimeInput,
 } from '@/utils/datetime'
 import { describeApiError } from '@/utils/errors'
-import type { ActivityResponse } from '@/types'
+import type { ActivityResponse, ReservationStatus } from '@/types'
 import styles from './guide.module.css'
+
+/** Estados finales: ya no cuentan como reserva activa. */
+const FINAL_RESERVATION_STATUSES: ReservationStatus[] = [
+  'REJECTED',
+  'CANCELLED',
+  'NO_SHOW',
+  'COMPLETED',
+]
 
 export default function AvailabilityPage() {
   const { user } = useAuth()
@@ -83,7 +91,8 @@ export default function AvailabilityPage() {
 
   const selected = activities.find((activity) => activity.id === selectedId)
 
-  // Reservas activas: ítems de tipo ACTIVITY que apuntan a esta actividad.
+  // Reservas activas: las que aún no están cerradas (rechazada, cancelada,
+  // no-show o completada). El backend las resuelve por ítem con `/by-item`.
   useEffect(() => {
     if (selectedId === '') {
       return
@@ -93,14 +102,17 @@ export default function AvailabilityPage() {
 
     async function run() {
       try {
-        const items = await reservationsApi.listItemsByType({
-          type: 'ACTIVITY',
+        const reservations = await reservationsApi.listByItem({
+          itemType: 'ACTIVITY',
+          itemId: selectedId,
           limit: 200,
         })
 
         if (!cancelled) {
           setActiveReservations(
-            items.filter((item) => item.itemId === selectedId).length,
+            reservations.filter(
+              (reservation) => !FINAL_RESERVATION_STATUSES.includes(reservation.status),
+            ).length,
           )
         }
       } catch {

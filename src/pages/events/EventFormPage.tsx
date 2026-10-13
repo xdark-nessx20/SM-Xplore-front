@@ -1,15 +1,16 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/Button'
 import { Field } from '@/components/FormField'
 import { PageHeader } from '@/components/PageHeader/PageHeader'
 import { eventsApi } from '@/services/eventsApi'
+import { sitesApi } from '@/services/sitesApi'
+import { zonesApi } from '@/services/zonesApi'
 import { combineDateAndTime } from '@/utils/datetime'
 import { describeApiError } from '@/utils/errors'
+import type { Site, Zone } from '@/types'
 import styles from './events.module.css'
-
-const LAST_SITE_KEY = 'sm-xplore:last-site-id'
 
 export default function EventFormPage() {
   const navigate = useNavigate()
@@ -17,9 +18,10 @@ export default function EventFormPage() {
   const [name, setName] = useState('')
   const [category, setCategory] = useState('')
   const [description, setDescription] = useState('')
-  const [siteId, setSiteId] = useState(
-    () => window.localStorage.getItem(LAST_SITE_KEY) ?? '',
-  )
+  const [siteId, setSiteId] = useState('')
+  const [zones, setZones] = useState<Zone[]>([])
+  const [sites, setSites] = useState<Site[]>([])
+  const [sitesError, setSitesError] = useState<string | null>(null)
   const [price, setPrice] = useState('')
   const [maxCapacity, setMaxCapacity] = useState('')
   const [expectedAttendance, setExpectedAttendance] = useState('')
@@ -30,14 +32,79 @@ export default function EventFormPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  useEffect(() => {
+    let cancelled = false
+
+    async function run() {
+      const [zonesResult, sitesResult] = await Promise.allSettled([
+        zonesApi.list(),
+        sitesApi.list(),
+      ])
+
+      if (cancelled) return
+
+      if (zonesResult.status === 'fulfilled') setZones(zonesResult.value)
+      if (sitesResult.status === 'fulfilled') {
+        setSites(sitesResult.value)
+        setSitesError(null)
+      } else {
+        setSitesError(describeApiError(sitesResult.reason))
+      }
+    }
+
+    void run()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  /** Atractivos agrupados por zona (los huérfanos van al final). */
+  const groupedSites = useMemo(() => {
+    const byZone = new Map<string, Site[]>()
+    for (const site of sites) {
+      const list = byZone.get(site.zoneId) ?? []
+      list.push(site)
+      byZone.set(site.zoneId, list)
+    }
+
+    const groups: Array<{ label: string; sites: Site[] }> = []
+    const sortedZones = [...zones].sort((a, b) =>
+      a.name.localeCompare(b.name, 'es'),
+    )
+
+    for (const zone of sortedZones) {
+      const zoneSites = (byZone.get(zone.id) ?? []).sort((a, b) =>
+        a.name.localeCompare(b.name, 'es'),
+      )
+      if (zoneSites.length > 0) {
+        groups.push({ label: zone.name, sites: zoneSites })
+      }
+      byZone.delete(zone.id)
+    }
+
+    const orphans = [...byZone.values()].flat().sort((a, b) =>
+      a.name.localeCompare(b.name, 'es'),
+    )
+    if (orphans.length > 0) {
+      groups.push({ label: 'Otras zonas', sites: orphans })
+    }
+
+    return groups
+  }, [zones, sites])
+
   async function handleSubmit(formEvent: FormEvent<HTMLFormElement>) {
     formEvent.preventDefault()
+
+    if (siteId.trim() === '') {
+      setError('Selecciona el atractivo donde se realizará el evento.')
+      return
+    }
+
     setIsSaving(true)
     setError(null)
 
     try {
-      window.localStorage.setItem(LAST_SITE_KEY, siteId.trim())
-
       const created = await eventsApi.create({
         siteId: siteId.trim(),
         name: name.trim(),
@@ -117,13 +184,35 @@ export default function EventFormPage() {
               />
             </label>
 
-            <Field
-              label="Lugar / atractivo (id del sitio)"
-              hint="El backend no expone el catálogo de sitios: pega el UUID del lugar."
-              required
-              value={siteId}
-              onChange={(changeEvent) => setSiteId(changeEvent.target.value)}
-            />
+            <label className={styles.full}>
+              <span className={styles.fieldLabel}>Lugar / atractivo</span>
+              <select
+                className={styles.control}
+                required
+                value={siteId}
+                onChange={(changeEvent) => setSiteId(changeEvent.target.value)}
+              >
+                <option value="">Selecciona un atractivo…</option>
+                {groupedSites.map((group) => (
+                  <optgroup key={group.label} label={group.label}>
+                    {group.sites.map((site) => (
+                      <option key={site.id} value={site.id}>
+                        {site.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              {sitesError !== null && (
+                <p className={styles.helper}>{sitesError}</p>
+              )}
+              {sitesError === null && sites.length === 0 && (
+                <p className={styles.helper}>
+                  Todavía no hay atractivos registrados: una gestora debe
+                  crearlos en Zonas.
+                </p>
+              )}
+            </label>
             <Field
               label="Precio de entrada (COP)"
               type="number"
@@ -193,8 +282,9 @@ export default function EventFormPage() {
           </div>
 
           <p className={styles.notice}>
-            Zona turística, imagen, organizador y contacto aparecen en el
-            diseño pero el backend todavía no los almacena.
+            El lugar se guarda como sitio (atractivo). La imagen, el
+            organizador y el contacto del diseño todavía no los almacena el
+            backend.
           </p>
         </form>
 

@@ -14,8 +14,9 @@ export const authApi = {
 
   /**
    * `POST /api/v1/auth/register` — 201 con el usuario creado.
-   * Solo Turista y Prestadora pueden auto-registrarse: el resto da 400.
-   * Las prestadoras nacen `INACTIVE` y no pueden iniciar sesión.
+   * Se puede registrar Turista, Prestadora, Guía y Gestora: los tres últimos
+   * nacen `INACTIVE`/pendientes y no pueden iniciar sesión hasta que un admin
+   * apruebe el registro.
    */
   register: (payload: RegisterUserRequest) =>
     httpClient.post<RegisterResponse>('/auth/register', payload),

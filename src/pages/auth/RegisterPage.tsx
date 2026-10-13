@@ -92,6 +92,45 @@ function buildPayload(form: FormState): RegisterUserRequest {
   return payload
 }
 
+/** Campos que el backend exige según el rol (los demás quedan opcionales). */
+function validate(form: FormState): string | null {
+  if (form.fullName.trim() === '') {
+    return 'Escribe tu nombre completo.'
+  }
+  if (form.email.trim() === '') {
+    return 'Escribe tu correo electrónico.'
+  }
+  if (form.phone.trim() === '') {
+    return 'Escribe tu teléfono.'
+  }
+  if (form.password === '') {
+    return 'Escribe una contraseña.'
+  }
+
+  if (form.role === 'TOURIST' || form.role === 'GUIDE') {
+    if (form.dniType === '') {
+      return 'Selecciona el tipo de documento.'
+    }
+    if (form.dniNumber.trim() === '') {
+      return 'Escribe el número de documento.'
+    }
+  }
+
+  if (form.role === 'GUIDE' && form.license.trim() === '') {
+    return 'Escribe la tarjeta profesional de guía.'
+  }
+
+  if (
+    (form.role === 'SERVICE_PROVIDER' ||
+      form.role === 'DESTINATION_MANAGER') &&
+    form.nit.trim() === ''
+  ) {
+    return 'Escribe el NIT.'
+  }
+
+  return null
+}
+
 function describeRegisterError(error: unknown): string {
   if (isApiError(error)) {
     if (error.status === 409) {
@@ -122,6 +161,13 @@ export default function RegisterPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
+
+    const validationError = validate(form)
+    if (validationError !== null) {
+      setError(validationError)
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
@@ -157,9 +203,9 @@ export default function RegisterPage() {
         }
       >
         <p className={styles.notice}>
-          Tu cuenta quedó registrada con el correo {created.email}. Las cuentas
-          de prestadoras de servicios se activan cuando el administrador
-          aprueba el registro.
+          {created.status === 'INACTIVE'
+            ? `Tu cuenta quedó registrada con el correo ${created.email}. Un administrador debe aprobar el registro antes de que puedas iniciar sesión.`
+            : `Tu cuenta quedó registrada con el correo ${created.email}. Ya puedes iniciar sesión.`}
         </p>
       </AuthShell>
     )
@@ -233,6 +279,7 @@ export default function RegisterPage() {
               <SelectField
                 label="Tipo de documento"
                 name="dniType"
+                required
                 options={DNI_TYPE_OPTIONS}
                 value={form.dniType}
                 onChange={(event) =>
@@ -242,6 +289,7 @@ export default function RegisterPage() {
               <Field
                 label="Número de documento"
                 name="dniNumber"
+                required
                 value={form.dniNumber}
                 onChange={(event) => update('dniNumber', event.target.value)}
               />
@@ -253,6 +301,8 @@ export default function RegisterPage() {
           <Field
             label="Tarjeta profesional de guía"
             name="license"
+            required
+            hint="Número de RNT del guía."
             value={form.license}
             onChange={(event) => update('license', event.target.value)}
           />
@@ -262,6 +312,8 @@ export default function RegisterPage() {
           <Field
             label="NIT"
             name="nit"
+            required
+            hint="Requerido para prestadoras de servicios y gestoras de destinos."
             value={form.nit}
             onChange={(event) => update('nit', event.target.value)}
           />

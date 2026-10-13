@@ -107,6 +107,24 @@ export default function ManageReportsPage() {
     }
   }
 
+  async function solve(reportId: string) {
+    setIsWorking(true)
+    setError(null)
+    setFeedback(null)
+
+    try {
+      const updated = await securityReportsApi.solve(reportId)
+      setReports((current) =>
+        current.map((report) => (report.id === updated.id ? updated : report)),
+      )
+      setFeedback('Reporte marcado como resuelto.')
+    } catch (cause) {
+      setError(describeApiError(cause))
+    } finally {
+      setIsWorking(false)
+    }
+  }
+
   return (
     <section>
       <PageHeader
@@ -160,7 +178,7 @@ export default function ManageReportsPage() {
 
           <p className={styles.notice}>
             El diseño separa "Incidentes" y "Avistamientos": el backend no tiene
-            tipo de reporte, solo estado, y "Resuelto" no tiene endpoint.
+            tipo de reporte, solo estado (en curso → reportado → resuelto).
           </p>
         </article>
 
@@ -197,6 +215,19 @@ export default function ManageReportsPage() {
                       onClick={() => void close(report.id)}
                     >
                       Cerrar reporte
+                    </Button>
+                  </div>
+                )}
+
+                {report.status === 'REPORTED' && (
+                  <div className={styles.actions}>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      disabled={isWorking}
+                      onClick={() => void solve(report.id)}
+                    >
+                      Resolver
                     </Button>
                   </div>
                 )}

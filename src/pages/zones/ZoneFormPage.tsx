@@ -4,10 +4,45 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/Button'
 import { Field } from '@/components/FormField'
 import { PageHeader } from '@/components/PageHeader/PageHeader'
+import { sitesApi } from '@/services/sitesApi'
 import { zonesApi } from '@/services/zonesApi'
 import { describeApiError } from '@/utils/errors'
-import type { SiteRef, Zone, ZoneInput, ZoneStatus } from '@/types'
+import type { Site, Zone } from '@/types'
 import styles from './zones.module.css'
+
+/** Separa las URLs de fotos escritas una por línea. */
+function parsePhotoUrls(value: string): string[] {
+  return value
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '')
+}
+
+function parseCoordinate(raw: string): number | null {
+  if (raw.trim() === '') {
+    return null
+  }
+
+  const value = Number(raw.replace(',', '.'))
+  return Number.isFinite(value) ? value : null
+}
+
+/** Devuelve el mensaje de error de las coordenadas, o null si son válidas. */
+function validateCoordinates(
+  latitude: number | null,
+  longitude: number | null,
+): string | null {
+  if (latitude === null || longitude === null) {
+    return 'Escribe la latitud y la longitud del sitio.'
+  }
+  if (latitude < -90 || latitude > 90) {
+    return 'La latitud debe estar entre -90 y 90.'
+  }
+  if (longitude < -180 || longitude > 180) {
+    return 'La longitud debe estar entre -180 y 180.'
+  }
+  return null
+}
 
 /** Wireframe: 11-gestionar-destino-frame · Configurar zona turística. */
 export default function ZoneFormPage() {
@@ -16,15 +51,26 @@ export default function ZoneFormPage() {
 
   const [zone, setZone] = useState<Zone | null>(null)
   const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [capacity, setCapacity] = useState('')
-  const [threshold, setThreshold] = useState('')
-  const [sites, setSites] = useState<SiteRef[]>([])
-  const [newSite, setNewSite] = useState('')
-  const [status, setStatus] = useState<ZoneStatus>('NORMAL')
   const [isLoading, setIsLoading] = useState(zoneId !== undefined)
-  const [isSaving, setIsSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [isSavingZone, setIsSavingZone] = useState(false)
+  const [zoneError, setZoneError] = useState<string | null>(null)
+  const [zoneSuccess, setZoneSuccess] = useState<string | null>(null)
+
+  const [sites, setSites] = useState<Site[]>([])
+  const [isAddingSite, setIsAddingSite] = useState(false)
+  const [addError, setAddError] = useState<string | null>(null)
+  const [newSiteName, setNewSiteName] = useState('')
+  const [newLatitude, setNewLatitude] = useState('')
+  const [newLongitude, setNewLongitude] = useState('')
+  const [newPhotoUrls, setNewPhotoUrls] = useState('')
+
+  const [editingSiteId, setEditingSiteId] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editLatitude, setEditLatitude] = useState('')
+  const [editLongitude, setEditLongitude] = useState('')
+  const [editPhotoUrls, setEditPhotoUrls] = useState('')
+  const [isSavingSite, setIsSavingSite] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
 
   const isNew = zoneId === undefined
 
@@ -37,18 +83,19 @@ export default function ZoneFormPage() {
 
     async function run() {
       try {
-        const found = await zonesApi.getById(zoneId as string)
-        if (cancelled) return
+        const [found, foundSites] = await Promise.all([
+          zonesApi.getById(zoneId as string),
+          sitesApi.list(zoneId as string),
+        ])
 
-        setZone(found)
-        setName(found.name)
-        setDescription(found.description)
-        setCapacity(String(found.recommendedCapacity))
-        setThreshold(String(found.congestionThreshold))
-        setSites(found.sites)
-        setStatus(found.status)
+        if (!cancelled) {
+          setZone(found)
+          setName(found.name)
+          setSites(foundSites)
+          setZoneError(null)
+        }
       } catch (cause) {
-        if (!cancelled) setError(describeApiError(cause))
+        if (!cancelled) setZoneError(describeApiError(cause))
       } finally {
         if (!cancelled) setIsLoading(false)
       }
@@ -61,47 +108,126 @@ export default function ZoneFormPage() {
     }
   }, [zoneId])
 
-  function addSite() {
-    const trimmed = newSite.trim()
+  async function handleSubmit(formEvent: FormEvent<HTMLFormElement>) {
+    formEvent.preventDefault()
 
+    const trimmed = name.trim()
     if (trimmed === '') {
+      setZoneError('Escribe el nombre de la zona.')
       return
     }
 
-    setSites((current) => [
-      ...current,
-      { id: `s-${Date.now()}`, name: trimmed },
-    ])
-    setNewSite('')
-  }
-
-  async function handleSubmit(formEvent: FormEvent<HTMLFormElement>) {
-    formEvent.preventDefault()
-    setIsSaving(true)
-    setError(null)
-
-    const input: ZoneInput = {
-      name: name.trim(),
-      description: description.trim(),
-      recommendedCapacity: Number(capacity),
-      congestionThreshold: Number(threshold),
-      sites,
-      boundary: zone?.boundary ?? null,
-      status,
-    }
+    setIsSavingZone(true)
+    setZoneError(null)
+    setZoneSuccess(null)
 
     try {
-      if (isNew) {
-        await zonesApi.create(input)
-      } else if (zone !== null) {
-        await zonesApi.update(zone.id, input)
+      if (zone === null) {
+        const created = await zonesApi.create({ name: trimmed })
+        // Se navega a la edición para poder añadir los sitios de la zona.
+        navigate(`/app/zonas/${created.id}`)
+        return
       }
 
-      navigate('/app/zonas')
+      const updated = await zonesApi.update(zone.id, { name: trimmed })
+      setZone(updated)
+      setName(updated.name)
+      setZoneSuccess('Nombre de la zona actualizado.')
     } catch (cause) {
-      setError(describeApiError(cause))
+      setZoneError(describeApiError(cause))
     } finally {
-      setIsSaving(false)
+      setIsSavingZone(false)
+    }
+  }
+
+  async function handleAddSite(formEvent: FormEvent<HTMLFormElement>) {
+    formEvent.preventDefault()
+
+    if (zone === null) {
+      return
+    }
+
+    const trimmedName = newSiteName.trim()
+    if (trimmedName === '') {
+      setAddError('Escribe el nombre del sitio.')
+      return
+    }
+
+    const latitude = parseCoordinate(newLatitude)
+    const longitude = parseCoordinate(newLongitude)
+    const coordinateError = validateCoordinates(latitude, longitude)
+    if (coordinateError !== null) {
+      setAddError(coordinateError)
+      return
+    }
+
+    setIsAddingSite(true)
+    setAddError(null)
+
+    try {
+      const created = await sitesApi.create({
+        zoneId: zone.id,
+        name: trimmedName,
+        latitude: latitude as number,
+        longitude: longitude as number,
+        photoUrls: parsePhotoUrls(newPhotoUrls),
+      })
+
+      setSites((current) => [...current, created])
+      setNewSiteName('')
+      setNewLatitude('')
+      setNewLongitude('')
+      setNewPhotoUrls('')
+    } catch (cause) {
+      setAddError(describeApiError(cause))
+    } finally {
+      setIsAddingSite(false)
+    }
+  }
+
+  function startEditSite(site: Site) {
+    setEditingSiteId(site.id)
+    setEditName(site.name)
+    setEditLatitude(String(site.latitude))
+    setEditLongitude(String(site.longitude))
+    setEditPhotoUrls(site.photoUrls.join('\n'))
+    setEditError(null)
+  }
+
+  async function saveSite(site: Site) {
+    const trimmedName = editName.trim()
+    if (trimmedName === '') {
+      setEditError('Escribe el nombre del sitio.')
+      return
+    }
+
+    const latitude = parseCoordinate(editLatitude)
+    const longitude = parseCoordinate(editLongitude)
+    const coordinateError = validateCoordinates(latitude, longitude)
+    if (coordinateError !== null) {
+      setEditError(coordinateError)
+      return
+    }
+
+    setIsSavingSite(true)
+    setEditError(null)
+
+    try {
+      const updated = await sitesApi.update(site.id, {
+        name: trimmedName,
+        latitude: latitude as number,
+        longitude: longitude as number,
+        photoUrls: parsePhotoUrls(editPhotoUrls),
+      })
+
+      setSites((current) =>
+        current.map((item) => (item.id === updated.id ? updated : item)),
+      )
+      setEditingSiteId(null)
+    } catch (cause) {
+      setEditError(describeApiError(cause))
+    } finally {
+      setIsSavingSite(false)
     }
   }
 
@@ -118,22 +244,30 @@ export default function ZoneFormPage() {
       <PageHeader
         breadcrumb={[
           { label: 'Zonas', to: '/app/zonas' },
-          ...(isNew ? [{ label: 'Nueva zona' }] : [{ label: name }]),
+          ...(isNew || zone === null
+            ? [{ label: 'Nueva zona' }]
+            : [{ label: zone.name }]),
         ]}
         title={isNew ? 'Nueva zona turística' : 'Configurar zona turística'}
       />
 
-      {error !== null && (
+      {zoneError !== null && (
         <p className={`${styles.feedback} ${styles.error}`} role="alert">
-          {error}
+          {zoneError}
+        </p>
+      )}
+
+      {zoneSuccess !== null && (
+        <p className={`${styles.feedback} ${styles.success}`} role="status">
+          {zoneSuccess}
         </p>
       )}
 
       <div className={styles.layout}>
-        <form className={styles.card} onSubmit={handleSubmit} noValidate>
-          <h2 className={styles.cardTitle}>Información de la zona</h2>
+        <div className={styles.column}>
+          <form className={styles.card} onSubmit={handleSubmit} noValidate>
+            <h2 className={styles.cardTitle}>Información de la zona</h2>
 
-          <div className={`${styles.grid} ${styles.twoColumns}`}>
             <Field
               label="Nombre de la zona"
               placeholder="Ej: Centro Histórico"
@@ -142,138 +276,246 @@ export default function ZoneFormPage() {
               onChange={(changeEvent) => setName(changeEvent.target.value)}
             />
 
-            <label className={`${styles.full}`}>
-              <span className={styles.fieldLabel}>Descripción</span>
-              <textarea
-                className={styles.textarea}
-                placeholder="Describe la zona y qué sitios agrupa…"
-                value={description}
-                onChange={(changeEvent) =>
-                  setDescription(changeEvent.target.value)
-                }
-              />
-            </label>
+            <div className={styles.actions}>
+              <Button variant="primary" type="submit" disabled={isSavingZone}>
+                {isSavingZone
+                  ? 'Guardando…'
+                  : isNew
+                    ? 'Crear zona'
+                    : 'Guardar nombre'}
+              </Button>
+              <Link to="/app/zonas">
+                <Button variant="outline">Cancelar</Button>
+              </Link>
+            </div>
+          </form>
 
-            <Field
-              label="Capacidad recomendada (personas)"
-              type="number"
-              min={1}
-              placeholder="1500"
-              required
-              value={capacity}
-              onChange={(changeEvent) => setCapacity(changeEvent.target.value)}
-            />
-            <Field
-              label="Umbral de congestión (%)"
-              type="number"
-              min={1}
-              max={100}
-              placeholder="80"
-              required
-              value={threshold}
-              onChange={(changeEvent) => setThreshold(changeEvent.target.value)}
-            />
+          {zone !== null && (
+            <article className={styles.card}>
+              <h2 className={styles.cardTitle}>Sitios de la zona</h2>
 
-            <div className={styles.full}>
-              <span className={styles.fieldLabel}>Sitios incluidos</span>
+              <ul className={styles.siteList}>
+                {sites.length === 0 && (
+                  <li className={styles.helper}>
+                    Esta zona todavía no tiene sitios.
+                  </li>
+                )}
 
-              <ul className={styles.chips}>
                 {sites.map((site) => (
-                  <li key={site.id} className={styles.chip}>
-                    {site.name}
-                    <button
-                      type="button"
-                      className={styles.chipRemove}
-                      onClick={() =>
-                        setSites((current) =>
-                          current.filter((item) => item.id !== site.id),
-                        )
-                      }
-                      aria-label={`Quitar ${site.name}`}
-                    >
-                      ✕
-                    </button>
+                  <li key={site.id} className={styles.siteRow}>
+                    {editingSiteId === site.id ? (
+                      <div className={styles.siteForm}>
+                        <Field
+                          label="Nombre del sitio"
+                          required
+                          value={editName}
+                          onChange={(changeEvent) =>
+                            setEditName(changeEvent.target.value)
+                          }
+                        />
+
+                        <div className={`${styles.grid} ${styles.twoColumns}`}>
+                          <Field
+                            label="Latitud"
+                            type="number"
+                            step="any"
+                            min={-90}
+                            max={90}
+                            required
+                            value={editLatitude}
+                            onChange={(changeEvent) =>
+                              setEditLatitude(changeEvent.target.value)
+                            }
+                          />
+                          <Field
+                            label="Longitud"
+                            type="number"
+                            step="any"
+                            min={-180}
+                            max={180}
+                            required
+                            value={editLongitude}
+                            onChange={(changeEvent) =>
+                              setEditLongitude(changeEvent.target.value)
+                            }
+                          />
+                        </div>
+
+                        <label className={styles.full}>
+                          <span className={styles.fieldLabel}>
+                            Fotos por URL (una por línea, opcional)
+                          </span>
+                          <textarea
+                            className={styles.textarea}
+                            placeholder="https://…"
+                            value={editPhotoUrls}
+                            onChange={(changeEvent) =>
+                              setEditPhotoUrls(changeEvent.target.value)
+                            }
+                          />
+                        </label>
+
+                        {editError !== null && (
+                          <p
+                            className={`${styles.feedback} ${styles.error}`}
+                            role="alert"
+                          >
+                            {editError}
+                          </p>
+                        )}
+
+                        <div className={styles.actions}>
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            disabled={isSavingSite}
+                            onClick={() => void saveSite(site)}
+                          >
+                            {isSavingSite ? 'Guardando…' : 'Guardar sitio'}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setEditingSiteId(null)}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className={styles.siteInfo}>
+                          <p className={styles.siteTitle}>{site.name}</p>
+                          <p className={styles.helper}>
+                            {site.latitude.toFixed(5)},{' '}
+                            {site.longitude.toFixed(5)} ·{' '}
+                            {site.photoUrls.length}{' '}
+                            {site.photoUrls.length === 1 ? 'foto' : 'fotos'}
+                          </p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => startEditSite(site)}
+                        >
+                          Editar
+                        </Button>
+                      </>
+                    )}
                   </li>
                 ))}
-                {sites.length === 0 && (
-                  <li className={styles.helper}>Todavía no agrupa sitios.</li>
-                )}
               </ul>
 
-              <div className={styles.actions} style={{ marginTop: '0.75rem' }}>
-                <input
-                  className={styles.control}
-                  placeholder="Nombre del sitio o atractivo"
-                  value={newSite}
-                  onChange={(changeEvent) => setNewSite(changeEvent.target.value)}
-                  onKeyDown={(keyEvent) => {
-                    if (keyEvent.key === 'Enter') {
-                      keyEvent.preventDefault()
-                      addSite()
-                    }
-                  }}
-                />
-                <Button variant="outline" onClick={addSite}>
-                  + Añadir sitio
-                </Button>
-              </div>
-              <p className={styles.helper}>
-                El catálogo de sitios todavía no existe en el backend: aquí se
-                agregan por nombre.
-              </p>
-            </div>
-          </div>
+              <form
+                className={styles.siteForm}
+                onSubmit={handleAddSite}
+                noValidate
+              >
+                <h3 className={styles.siteFormTitle}>Añadir sitio</h3>
 
-          <div className={styles.actions}>
-            <Button variant="primary" size="lg" type="submit" disabled={isSaving}>
-              {isSaving ? 'Guardando…' : 'Guardar cambios'}
-            </Button>
-            <Link to="/app/zonas">
-              <Button variant="outline" size="lg">
-                Cancelar
-              </Button>
-            </Link>
-          </div>
-        </form>
+                <Field
+                  label="Nombre del sitio o atractivo"
+                  placeholder="Ej: Catedral"
+                  required
+                  value={newSiteName}
+                  onChange={(changeEvent) =>
+                    setNewSiteName(changeEvent.target.value)
+                  }
+                />
+
+                <div className={`${styles.grid} ${styles.twoColumns}`}>
+                  <Field
+                    label="Latitud"
+                    type="number"
+                    step="any"
+                    min={-90}
+                    max={90}
+                    placeholder="11.24194"
+                    required
+                    value={newLatitude}
+                    onChange={(changeEvent) =>
+                      setNewLatitude(changeEvent.target.value)
+                    }
+                  />
+                  <Field
+                    label="Longitud"
+                    type="number"
+                    step="any"
+                    min={-180}
+                    max={180}
+                    placeholder="-74.19904"
+                    required
+                    value={newLongitude}
+                    onChange={(changeEvent) =>
+                      setNewLongitude(changeEvent.target.value)
+                    }
+                  />
+                </div>
+
+                <label className={styles.full}>
+                  <span className={styles.fieldLabel}>
+                    Fotos por URL (una por línea, opcional)
+                  </span>
+                  <textarea
+                    className={styles.textarea}
+                    placeholder="https://…"
+                    value={newPhotoUrls}
+                    onChange={(changeEvent) =>
+                      setNewPhotoUrls(changeEvent.target.value)
+                    }
+                  />
+                </label>
+
+                {addError !== null && (
+                  <p className={`${styles.feedback} ${styles.error}`} role="alert">
+                    {addError}
+                  </p>
+                )}
+
+                <div className={styles.actions}>
+                  <Button
+                    variant="outline"
+                    type="submit"
+                    disabled={isAddingSite}
+                  >
+                    {isAddingSite ? 'Añadiendo…' : '+ Añadir sitio'}
+                  </Button>
+                </div>
+              </form>
+            </article>
+          )}
+        </div>
 
         <div className={styles.column}>
           <article className={styles.card}>
-            <h2 className={styles.cardTitle}>Delimitación en el mapa</h2>
-            <div className={styles.map}>
-              {zone?.boundary === null || zone === null
-                ? 'Sin delimitar'
-                : 'Delimitación guardada'}
-              <br />
-              (pendiente: el backend no guarda polígonos y no hay servicio de
-              mapas)
-            </div>
-          </article>
-
-          <article className={styles.card}>
-            <h2 className={styles.cardTitle}>Estado de la zona</h2>
-            <label className={styles.radioRow}>
-              <input
-                type="radio"
-                name="estado-zona"
-                checked={status === 'NORMAL'}
-                onChange={() => setStatus('NORMAL')}
-              />
-              Normal
-            </label>
-            <label className={styles.radioRow}>
-              <input
-                type="radio"
-                name="estado-zona"
-                checked={status === 'CONGESTED'}
-                onChange={() => setStatus('CONGESTED')}
-              />
-              Congestionada
-            </label>
+            <h2 className={styles.cardTitle}>Qué guarda la API</h2>
+            <ul className={styles.bullets}>
+              <li>Nombre de la zona (se puede renombrar).</li>
+              <li>
+                Sitios de la zona: nombre, latitud, longitud y fotos por URL.
+              </li>
+            </ul>
             <p className={styles.helper}>
-              Al marcarla como congestionada se avisará a los turistas y se
-              sugerirán zonas alternativas.
+              El diseño pide además descripción, capacidad recomendada, umbral
+              de congestión, delimitación en el mapa y estado de afluencia: la
+              API todavía no los almacena. Tampoco hay endpoint para eliminar
+              sitios (sí para editarlos o moverlos de zona).
             </p>
           </article>
+
+          {zone !== null && (
+            <article className={styles.card}>
+              <h2 className={styles.cardTitle}>Resumen</h2>
+              <p className={styles.summaryLine}>
+                <span className={styles.summaryLabel}>Zona</span>
+                {name.trim() === '' ? zone.name : name}
+              </p>
+              <p className={styles.summaryLine}>
+                <span className={styles.summaryLabel}>Sitios</span>
+                {sites.length}
+              </p>
+            </article>
+          )}
         </div>
       </div>
     </section>

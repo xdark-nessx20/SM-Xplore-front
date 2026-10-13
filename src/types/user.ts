@@ -22,6 +22,11 @@ export interface UserResponse {
   phone: string
   role: UserRole
   status: UserStatus
+  /**
+   * Estado del registro de la prestadora (`null` en los demás roles). En guías y
+   * gestoras el registro pendiente se refleja en `status === 'INACTIVE'`.
+   */
+  registrationStatus: RegistrationStatus | null
   signedUpAt: string
 }
 
@@ -31,13 +36,9 @@ export interface UpdateUserProfileRequest {
   phone: string
 }
 
-export interface AssignRoleRequest {
-  role: UserRole
-}
-
-/** El backend solo acepta `BLOCKED` o `SUSPENDED` para bloquear una cuenta. */
-export interface BlockUserRequest {
-  status: Extract<UserStatus, 'BLOCKED' | 'SUSPENDED'>
+/** El backend solo acepta `ACTIVE` (reactivar), `BLOCKED` o `SUSPENDED`. */
+export interface ChangeUserStatusRequest {
+  status: Extract<UserStatus, 'ACTIVE' | 'BLOCKED' | 'SUSPENDED'>
 }
 
 export interface ResetPasswordRequest {
@@ -50,23 +51,31 @@ export interface UserSearchFilters {
   term?: string
 }
 
-/** Los campos que el usuario no registró llegan como `null`. */
+/**
+ * Los campos que el usuario no registró llegan como `null`.
+ * `email` y `phone` llegan `null` cuando la petición es anónima: el backend
+ * solo entrega los datos de contacto a quienes tienen sesión.
+ */
 export interface GuideProfileResponse {
   id: string
   fullName: string
-  email: string
-  phone: string
+  email: string | null
+  phone: string | null
   status: UserStatus
   license: string | null
   startOperationDate: string | null
 }
 
-/** Los campos que el usuario no registró llegan como `null`. */
+/**
+ * Los campos que el usuario no registró llegan como `null`.
+ * `email` y `phone` llegan `null` cuando la petición es anónima: el backend
+ * solo entrega los datos de contacto a quienes tienen sesión.
+ */
 export interface ServiceProviderProfileResponse {
   id: string
   fullName: string
-  email: string
-  phone: string
+  email: string | null
+  phone: string | null
   status: UserStatus
   nit: string | null
   serviceType: string | null

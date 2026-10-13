@@ -33,8 +33,8 @@ cd ../SM-Xplore-Proto
 # Bases de datos (Postgres local suele ocupar 5432, por eso 5433)
 POSTGRES_PORT=5433 docker compose up -d mongodb postgres
 
-# Aplicación
-./gradlew bootRun
+# Aplicación (ajusta R2DBC_URL al puerto elegido arriba)
+R2DBC_URL=r2dbc:postgresql://localhost:5433/ahorasi ./gradlew bootRun
 ```
 
 El backend queda en <http://localhost:8080> con Swagger en
@@ -135,36 +135,41 @@ SM-Xplore-front/
 Las secciones del menú se definen en `src/config/navigation.ts` y el router las convierte en
 rutas protegidas automáticamente.
 
-| Ruta                      | Pantalla              | Roles                              |
-| ------------------------- | --------------------- | ---------------------------------- |
-| `/login`                  | Iniciar sesión        | público                            |
-| `/registro`               | Crear cuenta          | público                            |
-| `/app`                    | Panel inicial         | todos                              |
-| `/app/explorar`           | Explorar              | TOURIST                            |
-| `/app/mis-reservas`       | Mis reservas          | TOURIST                            |
-| `/app/mis-actividades`    | Mis actividades       | GUIDE                              |
-| `/app/mis-servicios`      | Mis servicios         | SERVICE_PROVIDER                   |
-| `/app/reservas-recibidas` | Reservas recibidas    | GUIDE, SERVICE_PROVIDER            |
-| `/app/sitios`             | Destinos y sitios     | DESTINATION_MANAGER                |
-| `/app/eventos`            | Eventos               | DESTINATION_MANAGER, ADMIN         |
-| `/app/actividades`        | Actividades           | ADMIN                              |
-| `/app/servicios`          | Servicios             | ADMIN                              |
-| `/app/usuarios`           | Usuarios              | ADMIN                              |
-| `/app/reportes`           | Reportes de seguridad | todos                              |
-| `/app/perfil`             | Mi perfil             | todos                              |
+| Ruta                      | Pantalla                    | Roles                              |
+| ------------------------- | --------------------------- | ---------------------------------- |
+| `/login`                  | Iniciar sesión              | público                            |
+| `/registro`               | Crear cuenta                | público                            |
+| `/explorar`               | Explorar (shell público)    | TOURIST                            |
+| `/mis-reservas`           | Mis reservas (shell público)| TOURIST                            |
+| `/reportes`               | Reportes (shell público)    | TOURIST, GUIDE, SERVICE_PROVIDER   |
+| `/itinerario`             | Mis viajes                  | TOURIST                            |
+| `/perfil`                 | Mi perfil (shell público)   | TOURIST                            |
+| `/app`                    | Panel inicial               | todos                              |
+| `/app/mis-actividades`    | Mis actividades             | GUIDE, DESTINATION_MANAGER, ADMIN  |
+| `/app/disponibilidad`     | Disponibilidad              | GUIDE, DESTINATION_MANAGER, ADMIN  |
+| `/app/mis-servicios`      | Mis servicios               | SERVICE_PROVIDER, ADMIN            |
+| `/app/reservas-recibidas` | Reservas recibidas          | GUIDE, SERVICE_PROVIDER            |
+| `/app/zonas`              | Zonas y sitios              | DESTINATION_MANAGER, ADMIN         |
+| `/app/eventos`            | Eventos                     | DESTINATION_MANAGER, ADMIN         |
+| `/app/reportes`           | Mapa de incidentes          | DESTINATION_MANAGER, ADMIN         |
+| `/app/usuarios`           | Usuarios                    | ADMIN                              |
+| `/app/perfil`             | Mi perfil (panel)           | todos                              |
 
-> Las pantallas de sección son provisionales (`Placeholder`) hasta implementar los wireframes
-> de Figma.
+> El turista navega por el shell público; en el panel, `/app/explorar` y `/app/mis-reservas`
+> redirigen a sus rutas reales. Guías y prestadoras también usan `/reportes` (shell público) para
+> sus propios reportes; la gestora y el admin usan el mapa en `/app/reportes`. Los atractivos y
+> servicios tienen catálogo público en `/atractivos` y `/servicios`.
 
-## Autenticación (limitaciones del prototipo)
+## Autenticación
 
-- El backend **no emite tokens**: `POST /api/v1/auth/login` devuelve el usuario y nada más. La
-  sesión se guarda en `localStorage` (`sm-xplore:user`) mediante `AuthProvider`. **No es
-  autenticación real**: sirve para el prototipo y para la demo.
-- Por eso mismo, los endpoints de administrador **no validan permisos en el servidor**; el
-  control de acceso aquí es solo de interfaz (`RequireAuth` / `RequireRole`).
+- El login (`POST /api/v1/auth/login`) devuelve `{ token, tokenType, expiresIn, user }`; el JWT se
+  guarda en `localStorage` (`sm-xplore:token`) junto al usuario (`sm-xplore:user`) mediante
+  `AuthProvider` y viaja en `Authorization: Bearer`.
 - Las **prestadoras de servicios** se registran en estado `INACTIVE` y no pueden iniciar sesión
   hasta que un administrador las apruebe; el formulario de registro lo advierte.
+- El **catálogo público** (eventos, actividades, servicios, zonas, sitios y los perfiles de guía y
+  prestadora) se puede leer **sin sesión**. El contacto (correo y teléfono) de los perfiles llega
+  como `null` a las peticiones anónimas: la UI lo avisa e invita a iniciar sesión.
 
 ## Capa de API
 
@@ -172,6 +177,8 @@ rutas protegidas automáticamente.
 
 - resuelve la URL base desde `VITE_API_URL` (por defecto `/api/v1`);
 - serializa el cuerpo a JSON y omite los parámetros de query vacíos;
+- adjunta el token cuando hay sesión y, si la API responde `401` con token (expirado o
+  revocado), cierra la sesión y reintenta la petición sin él: el catálogo público no exige token;
 - devuelve `undefined` en respuestas `204`;
 - lanza `ApiError` (con `status` y el `ApiErrorResponse` del backend) o `TypeError` si no hay
   conexión.
@@ -185,6 +192,8 @@ Cada dominio del backend tiene su módulo tipado:
 | `services/eventsApi.ts`      | `/events/**`                                                     |
 | `services/servicesApi.ts`    | `/services/**` (servicios turísticos de las prestadoras)         |
 | `services/activitiesApi.ts`  | `/activities/**`                                                 |
+| `services/zonesApi.ts`       | `/zones/**` (zonas turísticas)                                   |
+| `services/sitesApi.ts`       | `/sites/**` (sitios/atractivos de cada zona)                     |
 | `services/reservationsApi.ts`| `/reservations/**` y `/reservation-items/**`                     |
 | `services/securityReportsApi.ts` | `/security-reports/**` (incluye comentarios y fotos)         |
 
@@ -220,8 +229,10 @@ opcionales enviados solo cuando aplican.
 - [x] Router con login, registro, sesión y menú por rol.
 - [x] Tokens de diseño y componentes base a partir de Figma (paleta, tipografías, shell público).
 - [x] Módulo **Usuarios** (admin): listado con búsqueda, filtros por rol, orden, paginación y
-      badges; detalle de usuario con asignación de rol, bloqueo, suspensión, restablecimiento de
-      contraseña y retiro de admin; pantalla de aprobación de prestadoras (UC6).
+      badges (incluye registro pendiente/rechazado); detalle con reactivación, bloqueo, suspensión,
+      restablecimiento de contraseña y retiro de admin; aprobación y rechazo de prestadoras (UC6)
+      y aprobación de guías y gestoras. El «Asignar rol» se retiró: el backend ya no permite
+      cambiar el rol de una cuenta.
 - [x] **Perfiles**: mi perfil con edición (UC3), perfil público de guía (UC4) y de prestadora
       (UC5), estos dos últimos con datos reales de `/users/guides`, `/users/providers`,
       `/activities` y `/services/provider`.
@@ -229,53 +240,67 @@ opcionales enviados solo cuando aplican.
       paginación (mockups 06-UC2/UC7/UC8) y detalle de actividad con panel de reserva conectado a
       `POST /reservations` + ítems (mockup 06-UC9). La barra del catálogo es la variante navy.
 - [x] **Mis reservas** (turista): listado con filtros por estado, badges de fecha y estado,
-      nombres de ítem resueltos desde los catálogos, y detalle con información, prestadora o guía,
-      desglose de pago y solicitud de cancelación (wireframes 10). El turista ya usa el shell
-      público: sus rutas son `/explorar`, `/mis-reservas`, `/perfil` y `/reportes`.
-- [x] **Reservas recibidas** (prestadora y guía): listado con búsqueda, filtros por estado y
-      acciones de confirmar, rechazar, marcar asistencia, no-show y cancelar; detalle con contacto
-      del turista e ítems.
+      nombres de ítem resueltos desde los catálogos, y detalle con código legible (`R-####`),
+      información, prestadora o guía, desglose de pago y solicitud de cancelación (wireframes 10).
+      El turista ya usa el shell público: sus rutas son `/explorar`, `/mis-reservas`, `/perfil` y
+      `/reportes`.
+- [x] **Reservas recibidas** (prestadora y guía): listado real desde
+      `/reservations/providers|guides/{id}` con búsqueda por turista o código, filtros por estado y
+      acciones de confirmar, rechazar, asistencia y no-show (el guía ya está habilitado con
+      validación de propiedad); detalle con contacto del turista e ítems. Cancelar una reserva
+      confirmada queda reservado al turista dueño o a un admin/gestora.
 - [x] **Crear itinerario** (turista): plan por días guardado en el navegador, reserva por
       elemento y "Reservar pendientes" agrupando por tipo y prestadora (el dominio no permite
       mezclar tipos ni proveedores en una misma reserva).
 - [x] **Autenticación con JWT**: login con `AuthResponse`, token en `Authorization`, cierre de
-      sesión automático al 401, registro limitado a Turista y Prestadora.
+      sesión automático al 401 y registro de turista, prestadora, guía y gestora (estas dos
+      últimas, con aprobación de un admin).
 - [x] **Actividades del guía**: listado, registrar (UC1), editar con estados (UC3) y
       disponibilidad/cupos (UC4/UC5/UC6), con las limitaciones del backend señaladas en pantalla.
-- [x] **Eventos**: agenda pública con filtros y detalle con reserva (turista) y gestión con estados
-      y afluencia esperada (gestora).
+- [x] **Eventos**: agenda pública con filtros (incluido zona) y detalle con reserva (turista) y gestión
+      con estados y afluencia esperada (gestora).
+- [x] **Zonas y sitios** (gestora): listado de zonas con sus sitios, alta y renombrado de zonas y
+      gestión de sitios (nombre, coordenadas y fotos por URL) contra la API real `/zones` y `/sites`;
+      los catálogos de actividades y eventos filtran por zona y los formularios eligen el atractivo
+      con un selector real.
+- [x] **Catálogo público sin sesión**: eventos, actividades, servicios, zonas, sitios y los perfiles
+      de guía y prestadora se leen sin token. Si el token guardado ya venció, `httpClient` cierra la
+      sesión y reintenta la petición sin él. El correo y el teléfono de los perfiles solo llegan con
+      sesión iniciada y la UI lo avisa.
 - [x] **Servicios de la prestadora**: listado, registrar (tipo, precio, ubicación, fotos por URL y
       atributos extra) y gestionar precio, disponibilidad, fotos y atributos. Sin mockup en Figma:
       se siguió el sistema de diseño del panel.
-- [ ] Implementar el resto de módulos: Actividades, Eventos, Reservas, Reseñas, Reportes de
-      seguridad y Destinos.
+- [x] **Catálogo público de atractivos** (`/atractivos`): listado con búsqueda y filtro por zona y
+      ficha con fotos, coordenadas, zona y las actividades y eventos publicados en el sitio. Sin
+      mockup en Figma: sigue el patrón de Explorar.
+- [x] **Catálogo público de servicios** (`/servicios`): listado con filtros por tipo y precio y
+      ficha con fotos, características, prestadora y panel de reserva (`POST /reservations` + ítem
+      `SERVICE`). Sin mockup en Figma: sigue el patrón de Explorar.
+- [x] **Reportes de seguridad**: creación con ubicación y fotos, listado propio y detalle con
+      respuestas; la gestora ve el mapa con el conteo por estado y puede cerrar (en curso →
+      reportado) y **resolver** (reportado → resuelto). El autor se deriva del token: ya no se
+      envía `user` en los POST.
+- [ ] Implementar **Reseñas** (falta backend).
 - [ ] Conectar las pantallas a la API real (requiere backend funcionando).
 - [ ] Separar el layout del turista: en los diseños usa la barra pública (catálogo), no el panel
       con menú lateral.
 - [ ] Carga de imágenes (fotos de servicios y reportes) — el backend hoy recibe URLs.
-- [ ] **Backend pendiente:** exponer por HTTP la aprobación de prestadoras; el caso de uso
-      `ApproveServiceProviderRegistrationUseCase` ya existe y el dominio ya tiene
-      `registrationStatus`, pero ninguna ruta lo invoca. Los botones "Aprobar/Rechazar" están
-      deshabilitados por eso.
 - [ ] **Backend pendiente:** almacenar los documentos de la solicitud de prestadora (cámara de
       comercio, RUT, certificado de seguridad) que el diseño pide validar.
-
-> **Aviso sobre el backend (`develop`, commit `9ffd379`):** el merge del PR #6 dejó
-> `GlobalExceptionHandler.java` sin compilar (anotaciones `@ExceptionHandler` apiladas) y
-> `application.yaml` con claves duplicadas (`spring.r2dbc`, `spring.sql`), lo que impide
-> arrancar la aplicación. Hay que repararlos antes de probar el frontend contra la API.
 
 ## Autenticación (JWT)
 
 - `POST /api/v1/auth/login` devuelve `{ token, tokenType, expiresIn, user }`. El token viaja en
   `Authorization: Bearer <token>` y lo añade `src/services/httpClient.ts`; `src/services/authToken.ts`
   lo cachea junto al usuario en `localStorage`.
-- **Todos** los endpoints salvo login, registro, recuperar contraseña, `/actuator/health` y Swagger
-  exigen token. Al expirar (60 min) la API responde 401, `httpClient` avisa y `AuthProvider` cierra
-  sesión.
+- El **catálogo público** (eventos, actividades, servicios, zonas, sitios y los perfiles públicos)
+  se puede leer sin token; el contacto de los perfiles llega `null` a las peticiones anónimas. El
+  resto de endpoints exige sesión. Al expirar el JWT (60 min) la API responde 401: `httpClient`
+  cierra la sesión y reintenta sin token, así el catálogo sigue funcionando.
 - No hay refresh token ni logout en el servidor: la sesión es local hasta que expira el JWT.
-- Solo **Turista** y **Prestadora** pueden auto-registrarse. Las prestadoras quedan `INACTIVE` y un
-  admin las aprueba con `POST /api/v1/users/{id}/approve-provider`.
+- Se pueden auto-registrar **Turista**, **Prestadora**, **Guía** y **Gestora de destinos**; las
+  tres últimas quedan `INACTIVE`/pendientes y un admin las aprueba (`approve-provider`,
+  `approve-guide`, `approve-manager`).
 - El backend ya expone CORS (`CORS_ALLOWED_ORIGINS`, por defecto `http://localhost:*`), así que el
   proxy de Vite es opcional en desarrollo.
 

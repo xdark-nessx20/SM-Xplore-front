@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/Button'
@@ -6,11 +6,12 @@ import { Field } from '@/components/FormField'
 import { PageHeader } from '@/components/PageHeader/PageHeader'
 import { useAuth } from '@/hooks/useAuth'
 import { activitiesApi } from '@/services/activitiesApi'
+import { sitesApi } from '@/services/sitesApi'
+import { zonesApi } from '@/services/zonesApi'
 import { combineDateAndTime } from '@/utils/datetime'
 import { describeApiError } from '@/utils/errors'
+import type { Site, Zone } from '@/types'
 import styles from './guide.module.css'
-
-const LAST_SITE_KEY = 'sm-xplore:last-site-id'
 
 /** El backend guarda una fecha/hora de inicio y otra de fin, no un calendario. */
 export default function ActivityFormPage() {
@@ -20,9 +21,10 @@ export default function ActivityFormPage() {
   const [name, setName] = useState('')
   const [category, setCategory] = useState('')
   const [description, setDescription] = useState('')
-  const [siteId, setSiteId] = useState(
-    () => window.localStorage.getItem(LAST_SITE_KEY) ?? '',
-  )
+  const [siteId, setSiteId] = useState('')
+  const [zones, setZones] = useState<Zone[]>([])
+  const [sites, setSites] = useState<Site[]>([])
+  const [sitesError, setSitesError] = useState<string | null>(null)
   const [price, setPrice] = useState('')
   const [maxCapacity, setMaxCapacity] = useState('')
   const [durationHours, setDurationHours] = useState('4')
@@ -33,6 +35,67 @@ export default function ActivityFormPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  useEffect(() => {
+    let cancelled = false
+
+    async function run() {
+      const [zonesResult, sitesResult] = await Promise.allSettled([
+        zonesApi.list(),
+        sitesApi.list(),
+      ])
+
+      if (cancelled) return
+
+      if (zonesResult.status === 'fulfilled') setZones(zonesResult.value)
+      if (sitesResult.status === 'fulfilled') {
+        setSites(sitesResult.value)
+        setSitesError(null)
+      } else {
+        setSitesError(describeApiError(sitesResult.reason))
+      }
+    }
+
+    void run()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  /** Atractivos agrupados por zona (los huérfanos van al final). */
+  const groupedSites = useMemo(() => {
+    const byZone = new Map<string, Site[]>()
+    for (const site of sites) {
+      const list = byZone.get(site.zoneId) ?? []
+      list.push(site)
+      byZone.set(site.zoneId, list)
+    }
+
+    const groups: Array<{ label: string; sites: Site[] }> = []
+    const sortedZones = [...zones].sort((a, b) =>
+      a.name.localeCompare(b.name, 'es'),
+    )
+
+    for (const zone of sortedZones) {
+      const zoneSites = (byZone.get(zone.id) ?? []).sort((a, b) =>
+        a.name.localeCompare(b.name, 'es'),
+      )
+      if (zoneSites.length > 0) {
+        groups.push({ label: zone.name, sites: zoneSites })
+      }
+      byZone.delete(zone.id)
+    }
+
+    const orphans = [...byZone.values()].flat().sort((a, b) =>
+      a.name.localeCompare(b.name, 'es'),
+    )
+    if (orphans.length > 0) {
+      groups.push({ label: 'Otras zonas', sites: orphans })
+    }
+
+    return groups
+  }, [zones, sites])
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
@@ -40,12 +103,15 @@ export default function ActivityFormPage() {
       return
     }
 
+    if (siteId.trim() === '') {
+      setError('Selecciona el atractivo donde se realizará la actividad.')
+      return
+    }
+
     setIsSaving(true)
     setError(null)
 
     try {
-      window.localStorage.setItem(LAST_SITE_KEY, siteId.trim())
-
       const created = await activitiesApi.create({
         siteId: siteId.trim(),
         guideId: user.id,
@@ -121,13 +187,35 @@ export default function ActivityFormPage() {
               />
             </label>
 
-            <Field
-              label="Atractivo asociado (id del sitio)"
-              hint="El backend aún no expone el catálogo de atractivos: pega el UUID del sitio."
-              required
-              value={siteId}
-              onChange={(event) => setSiteId(event.target.value)}
-            />
+            <label className={styles.full}>
+              <span className={styles.fieldLabel}>Atractivo asociado</span>
+              <select
+                className={styles.control}
+                required
+                value={siteId}
+                onChange={(event) => setSiteId(event.target.value)}
+              >
+                <option value="">Selecciona un atractivo…</option>
+                {groupedSites.map((group) => (
+                  <optgroup key={group.label} label={group.label}>
+                    {group.sites.map((site) => (
+                      <option key={site.id} value={site.id}>
+                        {site.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              {sitesError !== null && (
+                <p className={styles.muted}>{sitesError}</p>
+              )}
+              {sitesError === null && sites.length === 0 && (
+                <p className={styles.muted}>
+                  Todavía no hay atractivos registrados: una gestora debe
+                  crearlos en Zonas.
+                </p>
+              )}
+            </label>
             <Field
               label="Precio por persona (COP)"
               type="number"
@@ -196,9 +284,10 @@ export default function ActivityFormPage() {
           </div>
 
           <p className={styles.notice}>
-            Del diseño faltan por implementar en backend: zona turística,
-            punto de encuentro, dificultad, idioma, cupos por turno, días
-            disponibles (la API guarda una sola fecha) y fotos.
+            La zona se deduce del atractivo elegido. Del diseño faltan por
+            implementar en backend: punto de encuentro, dificultad, idioma,
+            cupos por turno, días disponibles (la API guarda una sola fecha) y
+            fotos.
           </p>
         </form>
 

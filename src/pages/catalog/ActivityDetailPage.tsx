@@ -9,12 +9,20 @@ import { useItinerary } from '@/hooks/useItinerary'
 import { activitiesApi } from '@/services/activitiesApi'
 import { describeApiError } from '@/utils/errors'
 import { reservationsApi } from '@/services/reservationsApi'
+import { sitesApi } from '@/services/sitesApi'
+import { zonesApi } from '@/services/zonesApi'
 import {
   formatCurrency,
   formatDate,
   formatDurationLong,
 } from '@/utils/format'
-import type { ActivityResponse, PaymentMethod, ReservationResponse } from '@/types'
+import type {
+  ActivityResponse,
+  PaymentMethod,
+  ReservationResponse,
+  Site,
+  Zone,
+} from '@/types'
 import styles from './catalog.module.css'
 
 /** Hora local legible de una fecha ISO (p. ej. "8:00 a. m."). */
@@ -37,6 +45,8 @@ export default function ActivityDetailPage() {
   const location = useLocation()
 
   const [activity, setActivity] = useState<ActivityResponse | null>(null)
+  const [site, setSite] = useState<Site | null>(null)
+  const [zone, setZone] = useState<Zone | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -63,6 +73,26 @@ export default function ActivityDetailPage() {
         const found = await activitiesApi.getById(activityId as string)
         if (!cancelled) {
           setActivity(found)
+        }
+
+        // Ubicación: sitio (atractivo) y su zona, si siguen publicados.
+        const [siteResult, zonesResult] = await Promise.allSettled([
+          sitesApi.getById(found.siteId),
+          zonesApi.list(),
+        ])
+
+        if (cancelled) return
+
+        if (siteResult.status === 'fulfilled') {
+          setSite(siteResult.value)
+
+          if (zonesResult.status === 'fulfilled') {
+            setZone(
+              zonesResult.value.find(
+                (item) => item.id === siteResult.value.zoneId,
+              ) ?? null,
+            )
+          }
         }
       } catch (cause) {
         if (!cancelled) {
@@ -226,8 +256,16 @@ export default function ActivityDetailPage() {
               Ubicación y punto de encuentro
             </h2>
             <div className={styles.map}>
-              La ubicación se mostrará cuando el backend exponga los sitios
-              turísticos
+              {site === null ? (
+                'Esta actividad no tiene un atractivo publicado asociado.'
+              ) : (
+                <>
+                  <strong>{site.name}</strong>
+                  <br />
+                  {zone !== null ? `${zone.name} · ` : ''}
+                  {site.latitude.toFixed(5)}, {site.longitude.toFixed(5)}
+                </>
+              )}
             </div>
           </section>
         </div>
@@ -241,7 +279,7 @@ export default function ActivityDetailPage() {
                 </p>
                 <div className={styles.line}>
                   <span>Reserva</span>
-                  <span>{confirmation.id.slice(0, 8)}…</span>
+                  <span>{confirmation.code}</span>
                 </div>
                 <div className={styles.line}>
                   <span>Personas</span>
@@ -251,7 +289,7 @@ export default function ActivityDetailPage() {
                   <span className={styles.totalTag}>Total</span>
                   <span>{formatCurrency(total)}</span>
                 </div>
-                <Link to="/app/mis-reservas">
+                <Link to="/mis-reservas">
                   <Button variant="outline" block>
                     Ir a mis reservas
                   </Button>

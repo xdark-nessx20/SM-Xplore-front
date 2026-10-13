@@ -5,7 +5,6 @@ import { Field } from '@/components/FormField'
 import { PageHeader } from '@/components/PageHeader/PageHeader'
 import { StatusBadge } from '@/components/StatusBadge/StatusBadge'
 import { REPORT_STATUS_LABELS, REPORT_STATUS_TONES } from '@/config/roles'
-import { useAuth } from '@/hooks/useAuth'
 import { securityReportsApi } from '@/services/securityReportsApi'
 import { describeApiError } from '@/utils/errors'
 import { formatDateTime } from '@/utils/format'
@@ -14,7 +13,6 @@ import styles from './reports.module.css'
 
 export default function ReportDetailPage() {
   const { reportId } = useParams<{ reportId: string }>()
-  const { user } = useAuth()
 
   const [report, setReport] = useState<SecurityReportResponse | null>(null)
   const [comments, setComments] = useState<CommentResponse[]>([])
@@ -213,13 +211,11 @@ export default function ReportDetailPage() {
               />
               <Button
                 variant="accent"
-                disabled={
-                  isWorking || comment.trim() === '' || user === null
-                }
+                disabled={isWorking || comment.trim() === ''}
                 onClick={() =>
                   void runAction(async () => {
+                    // El autor lo toma el backend del token de sesión.
                     await securityReportsApi.addComment(current.id, {
-                      user: { id: user!.id, name: user!.fullName },
                       content: comment.trim(),
                     })
                     const updated = await securityReportsApi.listComments(

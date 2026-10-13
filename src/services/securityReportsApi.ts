@@ -50,6 +50,12 @@ export const securityReportsApi = {
       `/security-reports/${reportId}/close`,
     ),
 
+  /** `POST /api/v1/security-reports/{reportId}/solve` — pasa de `REPORTED` a `SOLVED`. */
+  solve: (reportId: string) =>
+    httpClient.post<SecurityReportResponse>(
+      `/security-reports/${reportId}/solve`,
+    ),
+
   /** `POST /api/v1/security-reports/{reportId}/comments` — 201. */
   addComment: (reportId: string, payload: CommentRequest) =>
     httpClient.post<CommentResponse>(

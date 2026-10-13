@@ -1,7 +1,6 @@
 import { httpClient } from './httpClient'
 import type {
-  AssignRoleRequest,
-  BlockUserRequest,
+  ChangeUserStatusRequest,
   GuideProfileResponse,
   ResetPasswordRequest,
   ServiceProviderProfileResponse,
@@ -29,12 +28,12 @@ export const usersApi = {
   deleteAccount: (userId: string) =>
     httpClient.delete<void>(`/users/${userId}`),
 
-  /** `PATCH /api/v1/users/{userId}/role` — solo admin. */
-  assignRole: (userId: string, payload: AssignRoleRequest) =>
-    httpClient.patch<UserResponse>(`/users/${userId}/role`, payload),
-
-  /** `PATCH /api/v1/users/{userId}/status` — solo `BLOCKED` o `SUSPENDED`. */
-  block: (userId: string, payload: BlockUserRequest) =>
+  /**
+   * `PATCH /api/v1/users/{userId}/status` — admin: reactivar (`ACTIVE`),
+   * bloquear (`BLOCKED`) o suspender (`SUSPENDED`). Cambiar el rol no está
+   * soportado por el backend: cada rol tiene su propio perfil.
+   */
+  changeStatus: (userId: string, payload: ChangeUserStatusRequest) =>
     httpClient.patch<UserResponse>(`/users/${userId}/status`, payload),
 
   /** `DELETE /api/v1/users/{userId}/admin` — degrada a un administrador (204). */
@@ -54,4 +53,24 @@ export const usersApi = {
     httpClient.get<ServiceProviderProfileResponse>(
       `/users/providers/${providerId}`,
     ),
+
+  /** `POST /api/v1/users/{userId}/approve-provider` — admin. */
+  approveProvider: (userId: string) =>
+    httpClient.post<ServiceProviderProfileResponse>(
+      `/users/${userId}/approve-provider`,
+    ),
+
+  /** `POST /api/v1/users/{userId}/reject-provider` — admin. */
+  rejectProvider: (userId: string) =>
+    httpClient.post<ServiceProviderProfileResponse>(
+      `/users/${userId}/reject-provider`,
+    ),
+
+  /** `POST /api/v1/users/{userId}/approve-guide` — admin. */
+  approveGuide: (userId: string) =>
+    httpClient.post<GuideProfileResponse>(`/users/${userId}/approve-guide`),
+
+  /** `POST /api/v1/users/{userId}/approve-manager` — admin. */
+  approveManager: (userId: string) =>
+    httpClient.post<UserResponse>(`/users/${userId}/approve-manager`),
 }

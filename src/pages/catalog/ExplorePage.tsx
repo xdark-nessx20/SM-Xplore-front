@@ -5,8 +5,10 @@ import { Chip } from '@/components/Chip'
 import { PageHeader } from '@/components/PageHeader/PageHeader'
 import { Pagination } from '@/components/Pagination/Pagination'
 import { activitiesApi } from '@/services/activitiesApi'
+import { sitesApi } from '@/services/sitesApi'
+import { zonesApi } from '@/services/zonesApi'
 import { describeApiError } from '@/utils/errors'
-import type { ActivityResponse } from '@/types'
+import type { ActivityResponse, Site, Zone } from '@/types'
 import styles from './catalog.module.css'
 
 const PAGE_SIZE = 12
@@ -16,6 +18,8 @@ type SortOrder = 'relevance' | 'priceAsc' | 'priceDesc' | 'durationAsc'
 
 export default function ExplorePage() {
   const [activities, setActivities] = useState<ActivityResponse[]>([])
+  const [zones, setZones] = useState<Zone[]>([])
+  const [sites, setSites] = useState<Site[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -23,11 +27,15 @@ export default function ExplorePage() {
   const [categories, setCategories] = useState<string[]>([])
   const [maxPrice, setMaxPrice] = useState<number | null>(null)
   const [fromDate, setFromDate] = useState('')
+  const [zoneId, setZoneId] = useState('')
+  const [siteId, setSiteId] = useState('')
 
   // Borrador: se confirma con "Aplicar", como en el mockup
   const [draftCategories, setDraftCategories] = useState<string[]>([])
   const [draftMaxPrice, setDraftMaxPrice] = useState<number | null>(null)
   const [draftFromDate, setDraftFromDate] = useState('')
+  const [draftZoneId, setDraftZoneId] = useState('')
+  const [draftSiteId, setDraftSiteId] = useState('')
 
   const [sort, setSort] = useState<SortOrder>('relevance')
   const [page, setPage] = useState(1)
@@ -39,12 +47,26 @@ export default function ExplorePage() {
 
     async function run() {
       try {
-        const all = await activitiesApi.list()
+        const [activitiesResult, zonesResult, sitesResult] =
+          await Promise.allSettled([
+            activitiesApi.list(),
+            zonesApi.list(),
+            sitesApi.list(),
+          ])
+
+        if (activitiesResult.status === 'rejected') {
+          throw activitiesResult.reason
+        }
+
         if (!cancelled) {
           // El catálogo público muestra solo actividades publicadas.
           setActivities(
-            all.filter((activity) => activity.status === 'PUBLISHED'),
+            activitiesResult.value.filter(
+              (activity) => activity.status === 'PUBLISHED',
+            ),
           )
+          setZones(zonesResult.status === 'fulfilled' ? zonesResult.value : [])
+          setSites(sitesResult.status === 'fulfilled' ? sitesResult.value : [])
           setError(null)
         }
       } catch (cause) {
@@ -86,6 +108,31 @@ export default function ExplorePage() {
     [activities],
   )
 
+  const zoneOptions = useMemo(
+    () => [...zones].sort((a, b) => a.name.localeCompare(b.name, 'es')),
+    [zones],
+  )
+
+  const zoneSiteIds = useMemo(() => {
+    const map = new Map<string, Set<string>>()
+    for (const site of sites) {
+      const current = map.get(site.zoneId) ?? new Set<string>()
+      current.add(site.id)
+      map.set(site.zoneId, current)
+    }
+    return map
+  }, [sites])
+
+  /** Atractivos del borrador de zona; sin zona, todos. */
+  const siteOptions = useMemo(() => {
+    const list =
+      draftZoneId === ''
+        ? sites
+        : sites.filter((site) => site.zoneId === draftZoneId)
+
+    return [...list].sort((a, b) => a.name.localeCompare(b.name, 'es'))
+  }, [sites, draftZoneId])
+
   const filtered = useMemo(() => {
     const list = activities.filter((activity) => {
       if (
@@ -106,6 +153,14 @@ export default function ExplorePage() {
         return false
       }
 
+      if (zoneId !== '' && !zoneSiteIds.get(zoneId)?.has(activity.siteId)) {
+        return false
+      }
+
+      if (siteId !== '' && activity.siteId !== siteId) {
+        return false
+      }
+
       return true
     })
 
@@ -119,7 +174,7 @@ export default function ExplorePage() {
       default:
         return list
     }
-  }, [activities, categories, maxPrice, fromDate, sort])
+  }, [activities, categories, maxPrice, fromDate, zoneId, siteId, zoneSiteIds, sort])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const visible = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -136,6 +191,8 @@ export default function ExplorePage() {
     setCategories(draftCategories)
     setMaxPrice(draftMaxPrice)
     setFromDate(draftFromDate)
+    setZoneId(draftZoneId)
+    setSiteId(draftSiteId)
     setPage(1)
   }
 
@@ -143,14 +200,22 @@ export default function ExplorePage() {
     setDraftCategories([])
     setDraftMaxPrice(null)
     setDraftFromDate('')
+    setDraftZoneId('')
+    setDraftSiteId('')
     setCategories([])
     setMaxPrice(null)
     setFromDate('')
+    setZoneId('')
+    setSiteId('')
     setPage(1)
   }
 
   const hasActiveFilters =
-    categories.length > 0 || maxPrice !== null || fromDate !== ''
+    categories.length > 0 ||
+    maxPrice !== null ||
+    fromDate !== '' ||
+    zoneId !== '' ||
+    siteId !== ''
 
   return (
     <div className={styles.page}>
@@ -188,8 +253,29 @@ export default function ExplorePage() {
 
           <label className={styles.field}>
             <span className={styles.fieldLabel}>Zona</span>
-            <select className={styles.control} disabled>
-              <option>Todas las zonas</option>
+            <select
+              className={styles.control}
+              value={draftZoneId}
+              disabled={zoneOptions.length === 0}
+              onChange={(event) => {
+                const nextZoneId = event.target.value
+                setDraftZoneId(nextZoneId)
+
+                // El atractivo elegido debe seguir perteneciendo a la zona.
+                if (
+                  draftSiteId !== '' &&
+                  !zoneSiteIds.get(nextZoneId)?.has(draftSiteId)
+                ) {
+                  setDraftSiteId('')
+                }
+              }}
+            >
+              <option value="">Todas las zonas</option>
+              {zoneOptions.map((zone) => (
+                <option key={zone.id} value={zone.id}>
+                  {zone.name}
+                </option>
+              ))}
             </select>
           </label>
 
@@ -214,8 +300,22 @@ export default function ExplorePage() {
 
           <label className={styles.field}>
             <span className={styles.fieldLabel}>Atractivo</span>
-            <select className={styles.control} disabled>
-              <option>Todos los atractivos</option>
+            <select
+              className={styles.control}
+              value={draftSiteId}
+              disabled={siteOptions.length === 0}
+              onChange={(event) => setDraftSiteId(event.target.value)}
+            >
+              <option value="">
+                {draftZoneId === ''
+                  ? 'Todos los atractivos'
+                  : 'Todos los de la zona'}
+              </option>
+              {siteOptions.map((site) => (
+                <option key={site.id} value={site.id}>
+                  {site.name}
+                </option>
+              ))}
             </select>
           </label>
 
@@ -271,7 +371,7 @@ export default function ExplorePage() {
               </p>
               <p>
                 {hasActiveFilters
-                  ? 'Prueba con otra categoría, una fecha anterior o un precio mayor.'
+                  ? 'Prueba con otra categoría, zona o atractivo, una fecha anterior o un precio mayor.'
                   : 'Cuando las gestoras publiquen actividades aparecerán aquí.'}
               </p>
               {hasActiveFilters && (

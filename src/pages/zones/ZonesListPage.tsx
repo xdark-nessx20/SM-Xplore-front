@@ -1,30 +1,28 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/Button'
-import { Chip } from '@/components/Chip'
 import { DataTable } from '@/components/DataTable/DataTable'
 import type { Column } from '@/components/DataTable/DataTable'
 import { PageHeader } from '@/components/PageHeader/PageHeader'
 import { SearchInput } from '@/components/SearchInput/SearchInput'
-import { StatusBadge } from '@/components/StatusBadge/StatusBadge'
+import { sitesApi } from '@/services/sitesApi'
 import { zonesApi } from '@/services/zonesApi'
 import { describeApiError } from '@/utils/errors'
-import type { Zone, ZoneStatus } from '@/types'
+import type { Site, Zone } from '@/types'
 import styles from './zones.module.css'
 import tableStyles from '@/pages/admin/admin.module.css'
 
-const FILTERS: Array<{ label: string; status?: ZoneStatus }> = [
-  { label: 'Todas' },
-  { label: 'Normal', status: 'NORMAL' },
-  { label: 'Congestionada', status: 'CONGESTED' },
-]
+interface ZoneRow {
+  zone: Zone
+  sites: Site[]
+}
 
 /** Wireframe: 11-gestionar-destino-frame-115-1326 · Zonas turísticas (listado). */
 export default function ZonesListPage() {
   const [zones, setZones] = useState<Zone[]>([])
+  const [sites, setSites] = useState<Site[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [filterIndex, setFilterIndex] = useState(0)
   const [term, setTerm] = useState('')
 
   useEffect(() => {
@@ -32,9 +30,14 @@ export default function ZonesListPage() {
 
     async function run() {
       try {
-        const found = await zonesApi.list()
+        const [zoneList, siteList] = await Promise.all([
+          zonesApi.list(),
+          sitesApi.list(),
+        ])
+
         if (!cancelled) {
-          setZones(found)
+          setZones(zoneList)
+          setSites(siteList)
           setError(null)
         }
       } catch (cause) {
@@ -52,63 +55,59 @@ export default function ZonesListPage() {
   }, [])
 
   const filtered = useMemo(() => {
-    const status = FILTERS[filterIndex]?.status
     const needle = term.trim().toLowerCase()
 
-    return zones.filter((zone) => {
-      if (status !== undefined && zone.status !== status) {
-        return false
-      }
+    return zones.filter(
+      (zone) => needle === '' || zone.name.toLowerCase().includes(needle),
+    )
+  }, [zones, term])
 
-      return needle === '' || zone.name.toLowerCase().includes(needle)
-    })
-  }, [zones, filterIndex, term])
+  const rows: ZoneRow[] = useMemo(
+    () =>
+      filtered.map((zone) => ({
+        zone,
+        sites: sites.filter((site) => site.zoneId === zone.id),
+      })),
+    [filtered, sites],
+  )
 
-  const columns: Column<Zone>[] = [
+  const withoutSites = useMemo(() => {
+    const zonesWithSites = new Set(sites.map((site) => site.zoneId))
+    return zones.filter((zone) => !zonesWithSites.has(zone.id)).length
+  }, [zones, sites])
+
+  const columns: Column<ZoneRow>[] = [
     {
       header: 'Zona',
-      render: (zone) => (
+      render: ({ zone, sites: zoneSites }) => (
         <div>
           <p className={tableStyles.userName}>{zone.name}</p>
           <p className={tableStyles.userEmail}>
-            {zone.sites.length}{' '}
-            {zone.sites.length === 1 ? 'sitio' : 'sitios'}
+            {zoneSites.length}{' '}
+            {zoneSites.length === 1 ? 'sitio' : 'sitios'}
           </p>
         </div>
       ),
     },
     {
-      header: 'Atractivos',
-      render: (zone) => zone.sites.length,
-    },
-    {
-      header: 'Afluencia actual',
-      render: (zone) => (
-        <div className={styles.occupancy}>
-          <span className={styles.occupancyValue}>{zone.currentOccupancy}%</span>
-          <span className={styles.bar}>
-            <span
-              className={`${styles.barFill} ${
-                zone.status === 'CONGESTED' ? styles.barFillAlert : ''
-              }`}
-              style={{ width: `${zone.currentOccupancy}%` }}
-            />
-          </span>
-        </div>
-      ),
-    },
-    {
-      header: 'Estado',
-      render: (zone) => (
-        <StatusBadge tone={zone.status === 'CONGESTED' ? 'danger' : 'success'}>
-          {zone.status === 'CONGESTED' ? 'Congestionada' : 'Normal'}
-        </StatusBadge>
-      ),
+      header: 'Sitios',
+      render: ({ sites: zoneSites }) =>
+        zoneSites.length === 0 ? (
+          <span className={styles.muted}>Sin sitios todavía</span>
+        ) : (
+          <div className={styles.siteNames}>
+            {zoneSites.map((site) => (
+              <span key={site.id} className={styles.siteName}>
+                {site.name}
+              </span>
+            ))}
+          </div>
+        ),
     },
     {
       header: 'Acciones',
       align: 'right',
-      render: (zone) => (
+      render: ({ zone }) => (
         <Link to={`/app/zonas/${zone.id}`}>
           <Button variant="outline" size="sm">
             Configurar
@@ -142,26 +141,22 @@ export default function ZonesListPage() {
         </p>
       )}
 
-      <div className={tableStyles.chips}>
-        {FILTERS.map((filter, index) => (
-          <Chip
-            key={filter.label}
-            selected={filterIndex === index}
-            onClick={() => setFilterIndex(index)}
-          >
-            {filter.label}
-          </Chip>
-        ))}
-      </div>
-
       <DataTable
         columns={columns}
-        rows={filtered}
-        rowKey={(zone) => zone.id}
+        rows={rows}
+        rowKey={(row) => row.zone.id}
         isLoading={isLoading}
         loadingMessage="Cargando zonas…"
         emptyMessage="No hay zonas con estos filtros."
       />
+
+      {!isLoading && error === null && withoutSites > 0 && (
+        <p className={styles.helper}>
+          {withoutSites === 1
+            ? '1 zona aún no tiene sitios: ábrela para añadirlos.'
+            : `${withoutSites} zonas aún no tienen sitios: ábrelas para añadirlos.`}
+        </p>
+      )}
 
       <div className={styles.actions}>
         <Link to="/app/zonas/nueva">
@@ -170,10 +165,10 @@ export default function ZonesListPage() {
       </div>
 
       <p className={styles.notice}>
-        Vista diseñada según el wireframe y funcionando con datos de ejemplo: el
-        backend no tiene todavía API de zonas ni de sitios. La capa de datos está
-        aislada en <code>src/services/zonesApi.ts</code> y el % de afluencia
-        necesita una fuente de ocupación que aún no existe.
+        Datos reales de <code>/zones</code> y <code>/sites</code>: la zona solo
+        guarda su nombre y cada sitio pertenece a una zona con coordenadas y
+        fotos por URL. La capacidad recomendada, el umbral de congestión, el
+        estado y la afluencia del diseño todavía no existen en la API.
       </p>
     </section>
   )
