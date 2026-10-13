@@ -1,0 +1,143 @@
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { Button } from '@/components/Button'
+import { DataTable } from '@/components/DataTable/DataTable'
+import type { Column } from '@/components/DataTable/DataTable'
+import { PageHeader } from '@/components/PageHeader/PageHeader'
+import { StatusBadge } from '@/components/StatusBadge/StatusBadge'
+import {
+  SERVICE_STATUS_LABELS,
+  SERVICE_STATUS_TONES,
+  SERVICE_TYPE_LABELS,
+} from '@/config/roles'
+import { useAuth } from '@/hooks/useAuth'
+import { servicesApi } from '@/services/servicesApi'
+import { describeApiError } from '@/utils/errors'
+import { formatCurrency } from '@/utils/format'
+import type { ServiceResponse } from '@/types'
+import styles from './provider.module.css'
+
+export default function MyServicesPage() {
+  const { user } = useAuth()
+
+  const [services, setServices] = useState<ServiceResponse[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const providerId = user?.id
+
+  useEffect(() => {
+    if (providerId === undefined) {
+      return
+    }
+
+    let cancelled = false
+
+    async function run() {
+      try {
+        const mine = await servicesApi.listByProvider(providerId as string)
+        if (!cancelled) {
+          setServices(mine)
+          setError(null)
+        }
+      } catch (cause) {
+        if (!cancelled) {
+          setServices([])
+          setError(describeApiError(cause))
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false)
+      }
+    }
+
+    void run()
+
+    return () => {
+      cancelled = true
+    }
+  }, [providerId])
+
+  const columns: Column<ServiceResponse>[] = [
+    {
+      header: 'Servicio',
+      render: (service) => (
+        <div>
+          <p className={styles.names}>{service.name}</p>
+          <p className={styles.meta}>
+            {SERVICE_TYPE_LABELS[service.type]} ·{' '}
+            {formatCurrency(service.price)}
+          </p>
+        </div>
+      ),
+    },
+    {
+      header: 'Ubicación',
+      render: (service) =>
+        `${service.location.latitude}, ${service.location.longitude}`,
+    },
+    {
+      header: 'Fotos',
+      render: (service) => service.photosUrls.length,
+    },
+    {
+      header: 'Extras',
+      render: (service) => service.extras.length,
+    },
+    {
+      header: 'Estado',
+      render: (service) => (
+        <StatusBadge tone={SERVICE_STATUS_TONES[service.status]}>
+          {SERVICE_STATUS_LABELS[service.status]}
+        </StatusBadge>
+      ),
+    },
+    {
+      header: 'Acciones',
+      align: 'right',
+      render: (service) => (
+        <Link to={`/app/mis-servicios/${service.id}`}>
+          <Button variant="outline" size="sm">
+            Gestionar
+          </Button>
+        </Link>
+      ),
+    },
+  ]
+
+  return (
+    <section>
+      <PageHeader
+        breadcrumb={[{ label: 'Mis servicios' }, { label: 'Listado' }]}
+        title="Mis servicios"
+        description="Alojamiento, transporte y alimentación que ofreces a los turistas."
+        actions={
+          <Link to="/app/mis-servicios/nuevo">
+            <Button variant="accent">Nuevo servicio</Button>
+          </Link>
+        }
+      />
+
+      {error !== null && (
+        <p className={`${styles.feedback} ${styles.error}`} role="alert">
+          {error}
+        </p>
+      )}
+
+      <DataTable
+        columns={columns}
+        rows={services}
+        rowKey={(service) => service.id}
+        isLoading={isLoading}
+        loadingMessage="Cargando tus servicios…"
+        emptyMessage="Todavía no tienes servicios. Crea el primero con “Nuevo servicio”."
+      />
+
+      <p className={styles.notice}>
+        Este módulo no tiene mockup en Figma: se construyó con el sistema de
+        diseño del panel. El backend solo acepta URLs de fotos (no sube
+        archivos) y no permite editar nombre, tipo ni ubicación después de
+        crear el servicio.
+      </p>
+    </section>
+  )
+}

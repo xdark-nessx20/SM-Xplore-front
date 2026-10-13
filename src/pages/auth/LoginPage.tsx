@@ -47,7 +47,6 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const state = location.state as FromState | null
-  const redirectTo = state?.from?.pathname ?? '/app'
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -56,8 +55,13 @@ export default function LoginPage() {
     setIsSubmitting(true)
 
     try {
-      await login({ email: email.trim(), password })
-      navigate(redirectTo, { replace: true })
+      const authenticated = await login({ email: email.trim(), password })
+      // El turista vive en el catálogo público; los demás roles, en el panel.
+      navigate(
+        state?.from?.pathname ??
+          (authenticated.role === 'TOURIST' ? '/explorar' : '/app'),
+        { replace: true },
+      )
     } catch (cause) {
       setError(describeAuthError(cause))
     } finally {

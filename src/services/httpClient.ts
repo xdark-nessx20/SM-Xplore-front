@@ -1,4 +1,5 @@
 import type { ApiErrorResponse } from '@/types'
+import { loadToken, notifyUnauthorized } from './authToken'
 
 const BASE_URL: string = import.meta.env.VITE_API_URL ?? '/api/v1'
 
@@ -69,11 +70,21 @@ async function request<T>(
     headers.set('Content-Type', 'application/json')
   }
 
+  // Todos los endpoints salvo login/register/recover exigen el token.
+  const currentToken = loadToken()
+  if (currentToken !== null) {
+    headers.set('Authorization', `Bearer ${currentToken}`)
+  }
+
   const response = await fetch(`${BASE_URL}${path}${buildQuery(query)}`, {
     ...rest,
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
   })
+
+  if (response.status === 401) {
+    notifyUnauthorized()
+  }
 
   if (!response.ok) {
     throw await toApiError(response)

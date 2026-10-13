@@ -1,0 +1,371 @@
+import { useEffect, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { Button } from '@/components/Button'
+import { Field } from '@/components/FormField'
+import { PageHeader } from '@/components/PageHeader/PageHeader'
+import { StatusBadge } from '@/components/StatusBadge/StatusBadge'
+import {
+  ACTIVITY_STATUS_LABELS,
+  ACTIVITY_STATUS_TONES,
+} from '@/config/roles'
+import { useAuth } from '@/hooks/useAuth'
+import { activitiesApi } from '@/services/activitiesApi'
+import { reservationsApi } from '@/services/reservationsApi'
+import {
+  combineDateAndTime,
+  toDateInput,
+  toTimeInput,
+} from '@/utils/datetime'
+import { describeApiError } from '@/utils/errors'
+import type { ActivityResponse } from '@/types'
+import styles from './guide.module.css'
+
+export default function AvailabilityPage() {
+  const { user } = useAuth()
+  const [searchParams] = useSearchParams()
+
+  const [activities, setActivities] = useState<ActivityResponse[]>([])
+  const [selectedId, setSelectedId] = useState('')
+  const [date, setDate] = useState('')
+  const [startTime, setStartTime] = useState('08:00')
+  const [endTime, setEndTime] = useState('12:00')
+  const [maxCapacity, setMaxCapacity] = useState('')
+  const [activeReservations, setActiveReservations] = useState(0)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isWorking, setIsWorking] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [feedback, setFeedback] = useState<string | null>(null)
+
+  const guideId = user?.id
+
+  useEffect(() => {
+    if (guideId === undefined) {
+      return
+    }
+
+    let cancelled = false
+
+    async function run() {
+      try {
+        const all = await activitiesApi.list()
+        if (cancelled) return
+
+        const mine = all.filter((activity) => activity.guideId === guideId)
+        setActivities(mine)
+
+        const requested = searchParams.get('id')
+        const initial =
+          mine.find((activity) => activity.id === requested) ?? mine[0]
+
+        if (initial !== undefined) {
+          setSelectedId(initial.id)
+          setDate(toDateInput(initial.startsAt))
+          setStartTime(toTimeInput(initial.startsAt))
+          setEndTime(toTimeInput(initial.endsAt))
+          setMaxCapacity(String(initial.maxCapacity))
+        }
+
+        setError(null)
+      } catch (cause) {
+        if (!cancelled) setError(describeApiError(cause))
+      } finally {
+        if (!cancelled) setIsLoading(false)
+      }
+    }
+
+    void run()
+
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guideId])
+
+  const selected = activities.find((activity) => activity.id === selectedId)
+
+  // Reservas activas: ítems de tipo ACTIVITY que apuntan a esta actividad.
+  useEffect(() => {
+    if (selectedId === '') {
+      return
+    }
+
+    let cancelled = false
+
+    async function run() {
+      try {
+        const items = await reservationsApi.listItemsByType({
+          type: 'ACTIVITY',
+          limit: 200,
+        })
+
+        if (!cancelled) {
+          setActiveReservations(
+            items.filter((item) => item.itemId === selectedId).length,
+          )
+        }
+      } catch {
+        if (!cancelled) setActiveReservations(0)
+      }
+    }
+
+    void run()
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedId])
+
+  function selectActivity(id: string) {
+    const found = activities.find((activity) => activity.id === id)
+    setSelectedId(id)
+    setFeedback(null)
+    setError(null)
+
+    if (found !== undefined) {
+      setDate(toDateInput(found.startsAt))
+      setStartTime(toTimeInput(found.startsAt))
+      setEndTime(toTimeInput(found.endsAt))
+      setMaxCapacity(String(found.maxCapacity))
+    }
+  }
+
+  async function runAction(
+    action: () => Promise<ActivityResponse>,
+    message: string,
+  ) {
+    setIsWorking(true)
+    setError(null)
+    setFeedback(null)
+
+    try {
+      const updated = await action()
+      setActivities((current) =>
+        current.map((activity) =>
+          activity.id === updated.id ? updated : activity,
+        ),
+      )
+      setFeedback(message)
+    } catch (cause) {
+      setError(describeApiError(cause))
+    } finally {
+      setIsWorking(false)
+    }
+  }
+
+  async function save() {
+    if (selected === undefined) {
+      return
+    }
+
+    setIsWorking(true)
+    setError(null)
+    setFeedback(null)
+
+    try {
+      await activitiesApi.setAvailability(selected.id, {
+        startsAt: combineDateAndTime(date, startTime),
+        endsAt: combineDateAndTime(date, endTime),
+      })
+
+      const updated = await activitiesApi.setSlots(selected.id, {
+        maxCapacity: Number(maxCapacity),
+      })
+
+      setActivities((current) =>
+        current.map((activity) =>
+          activity.id === updated.id ? updated : activity,
+        ),
+      )
+      setFeedback('Fechas y cupos actualizados.')
+    } catch (cause) {
+      setError(describeApiError(cause))
+    } finally {
+      setIsWorking(false)
+    }
+  }
+
+  if (isLoading) {
+    return <p className={styles.state}>Cargando actividades…</p>
+  }
+
+  return (
+    <section>
+      <PageHeader
+        breadcrumb={[{ label: 'Disponibilidad' }, { label: 'Fechas y cupos' }]}
+        title="Disponibilidad y cupos"
+        actions={
+          selected !== undefined ? (
+            <StatusBadge tone={ACTIVITY_STATUS_TONES[selected.status]}>
+              {ACTIVITY_STATUS_LABELS[selected.status]}
+            </StatusBadge>
+          ) : undefined
+        }
+      />
+
+      {error !== null && (
+        <p className={`${styles.feedback} ${styles.error}`} role="alert">
+          {error}
+        </p>
+      )}
+      {feedback !== null && (
+        <p className={`${styles.feedback} ${styles.success}`}>{feedback}</p>
+      )}
+
+      {activities.length === 0 ? (
+        <p className={styles.state}>
+          No tienes actividades todavía.{' '}
+          <Link to="/app/mis-actividades/nueva">Crea la primera</Link> para
+          gestionar su disponibilidad.
+        </p>
+      ) : (
+        <div className={styles.layout}>
+          <div className={styles.card}>
+            <h2 className={styles.cardTitle}>Fechas y cupos</h2>
+
+            <div className={`${styles.grid} ${styles.twoColumns}`}>
+              <label className={styles.full}>
+                <span className={styles.fieldLabel}>Actividad</span>
+                <select
+                  className={styles.control}
+                  value={selectedId}
+                  onChange={(event) => selectActivity(event.target.value)}
+                >
+                  {activities.map((activity) => (
+                    <option key={activity.id} value={activity.id}>
+                      {activity.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <Field
+                label="Fecha"
+                type="date"
+                required
+                value={date}
+                onChange={(event) => setDate(event.target.value)}
+              />
+              <div className={`${styles.grid} ${styles.twoColumns}`}>
+                <Field
+                  label="Hora inicio"
+                  type="time"
+                  required
+                  value={startTime}
+                  onChange={(event) => setStartTime(event.target.value)}
+                />
+                <Field
+                  label="Hora fin"
+                  type="time"
+                  required
+                  value={endTime}
+                  onChange={(event) => setEndTime(event.target.value)}
+                />
+              </div>
+
+              <Field
+                label="Capacidad máxima (cupos)"
+                type="number"
+                min={1}
+                required
+                value={maxCapacity}
+                onChange={(event) => setMaxCapacity(event.target.value)}
+              />
+            </div>
+
+            <div className={styles.actions}>
+              <Button
+                variant="accent"
+                size="lg"
+                disabled={isWorking}
+                onClick={() => void save()}
+              >
+                {isWorking ? 'Guardando…' : 'Guardar cambios'}
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                disabled={isWorking || selected?.status === 'PAUSED'}
+                onClick={() =>
+                  selected !== undefined &&
+                  void runAction(
+                    () =>
+                      activitiesApi.changeStatus(selected.id, {
+                        status: 'PAUSED',
+                      }),
+                    'Fechas cerradas temporalmente (actividad pausada).',
+                  )
+                }
+              >
+                Cerrar temporalmente
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                disabled={isWorking || selected?.status === 'CANCELLED'}
+                onClick={() =>
+                  selected !== undefined &&
+                  void runAction(
+                    () => activitiesApi.cancel(selected.id),
+                    'Actividad cancelada.',
+                  )
+                }
+              >
+                Cancelar actividad
+              </Button>
+            </div>
+
+            <p className={styles.notice}>
+              El diseño tiene un calendario por día con turnos y estado
+              (disponible / agotado / cerrado) y un botón "Bloquear fecha". El
+              backend guarda **una sola** fecha de inicio y fin por actividad y
+              no tiene turnos ni cierres por día, así que aquí se editan esos
+              dos instantes y la capacidad; "Cerrar temporalmente" pausa la
+              actividad completa.
+            </p>
+          </div>
+
+          <div className={styles.column}>
+            <article className={styles.card}>
+              <h2 className={styles.cardTitle}>Cupos</h2>
+              <div className={styles.summaryLine}>
+                <span>Capacidad máxima</span>
+                <span className={styles.summaryValue}>
+                  {selected?.maxCapacity ?? 0} personas
+                </span>
+              </div>
+              <div className={styles.summaryLine}>
+                <span>Cupos por turno</span>
+                <span className={styles.summaryValue}>
+                  {selected?.maxCapacity ?? 0} cupos
+                </span>
+              </div>
+              <div className={styles.summaryLine}>
+                <span>Reservas activas</span>
+                <span className={styles.summaryValue}>
+                  {activeReservations}
+                </span>
+              </div>
+              <p className={styles.muted}>
+                "Cupos por turno" es la misma capacidad: el backend no distingue
+                turnos.
+              </p>
+            </article>
+
+            <article className={styles.card}>
+              <h2 className={styles.cardTitle}>Reservas</h2>
+              <p className={styles.muted}>
+                Las reservas de tus actividades se atienden en "Reservas
+                recibidas".
+              </p>
+              <Link to="/app/reservas-recibidas">
+                <Button variant="outline" block>
+                  Ir a reservas recibidas
+                </Button>
+              </Link>
+            </article>
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}

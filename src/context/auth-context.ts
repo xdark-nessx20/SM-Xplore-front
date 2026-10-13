@@ -11,7 +11,10 @@ export interface AuthContextValue {
   isAuthenticated: boolean
   /** Inicia sesión contra `/api/v1/auth/login`. */
   login: (credentials: LoginRequest) => Promise<UserResponse>
-  /** Registra un usuario y deja la sesión iniciada con el usuario creado. */
+  /**
+   * Registra un usuario. Los turistas quedan con la sesión iniciada;
+   * las prestadoras quedan pendientes de aprobación y sin sesión.
+   */
   register: (payload: RegisterUserRequest) => Promise<UserResponse>
   /** Cierra la sesión local (el prototipo no maneja tokens). */
   logout: () => void

@@ -225,6 +225,28 @@ opcionales enviados solo cuando aplican.
 - [x] **Perfiles**: mi perfil con edición (UC3), perfil público de guía (UC4) y de prestadora
       (UC5), estos dos últimos con datos reales de `/users/guides`, `/users/providers`,
       `/activities` y `/services/provider`.
+- [x] **Catálogo del turista**: Explorar con filtros por categoría, fecha y precio, orden y
+      paginación (mockups 06-UC2/UC7/UC8) y detalle de actividad con panel de reserva conectado a
+      `POST /reservations` + ítems (mockup 06-UC9). La barra del catálogo es la variante navy.
+- [x] **Mis reservas** (turista): listado con filtros por estado, badges de fecha y estado,
+      nombres de ítem resueltos desde los catálogos, y detalle con información, prestadora o guía,
+      desglose de pago y solicitud de cancelación (wireframes 10). El turista ya usa el shell
+      público: sus rutas son `/explorar`, `/mis-reservas`, `/perfil` y `/reportes`.
+- [x] **Reservas recibidas** (prestadora y guía): listado con búsqueda, filtros por estado y
+      acciones de confirmar, rechazar, marcar asistencia, no-show y cancelar; detalle con contacto
+      del turista e ítems.
+- [x] **Crear itinerario** (turista): plan por días guardado en el navegador, reserva por
+      elemento y "Reservar pendientes" agrupando por tipo y prestadora (el dominio no permite
+      mezclar tipos ni proveedores en una misma reserva).
+- [x] **Autenticación con JWT**: login con `AuthResponse`, token en `Authorization`, cierre de
+      sesión automático al 401, registro limitado a Turista y Prestadora.
+- [x] **Actividades del guía**: listado, registrar (UC1), editar con estados (UC3) y
+      disponibilidad/cupos (UC4/UC5/UC6), con las limitaciones del backend señaladas en pantalla.
+- [x] **Eventos**: agenda pública con filtros y detalle con reserva (turista) y gestión con estados
+      y afluencia esperada (gestora).
+- [x] **Servicios de la prestadora**: listado, registrar (tipo, precio, ubicación, fotos por URL y
+      atributos extra) y gestionar precio, disponibilidad, fotos y atributos. Sin mockup en Figma:
+      se siguió el sistema de diseño del panel.
 - [ ] Implementar el resto de módulos: Actividades, Eventos, Reservas, Reseñas, Reportes de
       seguridad y Destinos.
 - [ ] Conectar las pantallas a la API real (requiere backend funcionando).
@@ -242,6 +264,20 @@ opcionales enviados solo cuando aplican.
 > `GlobalExceptionHandler.java` sin compilar (anotaciones `@ExceptionHandler` apiladas) y
 > `application.yaml` con claves duplicadas (`spring.r2dbc`, `spring.sql`), lo que impide
 > arrancar la aplicación. Hay que repararlos antes de probar el frontend contra la API.
+
+## Autenticación (JWT)
+
+- `POST /api/v1/auth/login` devuelve `{ token, tokenType, expiresIn, user }`. El token viaja en
+  `Authorization: Bearer <token>` y lo añade `src/services/httpClient.ts`; `src/services/authToken.ts`
+  lo cachea junto al usuario en `localStorage`.
+- **Todos** los endpoints salvo login, registro, recuperar contraseña, `/actuator/health` y Swagger
+  exigen token. Al expirar (60 min) la API responde 401, `httpClient` avisa y `AuthProvider` cierra
+  sesión.
+- No hay refresh token ni logout en el servidor: la sesión es local hasta que expira el JWT.
+- Solo **Turista** y **Prestadora** pueden auto-registrarse. Las prestadoras quedan `INACTIVE` y un
+  admin las aprueba con `POST /api/v1/users/{id}/approve-provider`.
+- El backend ya expone CORS (`CORS_ALLOWED_ORIGINS`, por defecto `http://localhost:*`), así que el
+  proxy de Vite es opcional en desarrollo.
 
 ## Herramientas de calidad
 

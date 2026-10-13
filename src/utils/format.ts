@@ -33,6 +33,29 @@ export function formatDateTime(value: string | Date, locale = 'es-CO'): string {
   }).format(date)
 }
 
+/** Tiempo relativo: "hace 2 h", "ayer". */
+export function formatRelativeTime(value: string | Date, locale = 'es-CO'): string {
+  const date = value instanceof Date ? value : new Date(value)
+  const diffSeconds = Math.round((date.getTime() - Date.now()) / 1000)
+  const formatter = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
+
+  const units: Array<[Intl.RelativeTimeFormatUnit, number]> = [
+    ['year', 31536000],
+    ['month', 2592000],
+    ['day', 86400],
+    ['hour', 3600],
+    ['minute', 60],
+  ]
+
+  for (const [unit, seconds] of units) {
+    if (Math.abs(diffSeconds) >= seconds) {
+      return formatter.format(Math.round(diffSeconds / seconds), unit)
+    }
+  }
+
+  return formatter.format(diffSeconds, 'second')
+}
+
 /** Formatea un precio en pesos colombianos: 120000 → "$ 120.000". */
 export function formatCurrency(value: number, locale = 'es-CO'): string {
   return new Intl.NumberFormat(locale, {
@@ -50,4 +73,18 @@ export function formatDuration(minutes: number): string {
 
   const hours = minutes / 60
   return `${Number.isInteger(hours) ? hours : hours.toFixed(1)} h`
+}
+
+/** Duración en palabras: 240 → "4 horas", 45 → "45 minutos". */
+export function formatDurationLong(minutes: number): string {
+  if (minutes < 60) {
+    return `${minutes} ${minutes === 1 ? 'minuto' : 'minutos'}`
+  }
+
+  const hours = minutes / 60
+  if (Number.isInteger(hours)) {
+    return `${hours} ${hours === 1 ? 'hora' : 'horas'}`
+  }
+
+  return `${hours.toFixed(1)} horas`
 }

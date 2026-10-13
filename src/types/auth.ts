@@ -38,8 +38,19 @@ export interface RegisterUserRequest {
   startOperationDate?: string
 }
 
-/** El login del prototipo no devuelve token: solo el usuario autenticado. */
-export type LoginResponse = UserResponse
+/** Respuesta del login: token JWT + usuario autenticado. */
+export interface AuthResponse {
+  /** JWT firmado en HS256. */
+  token: string
+  /** Siempre "Bearer". */
+  tokenType: string
+  /** Vida del token en segundos. */
+  expiresIn: number
+  user: UserResponse
+}
 
-/** El registro devuelve el usuario creado. */
+/** El login devuelve token y usuario. */
+export type LoginResponse = AuthResponse
+
+/** El registro solo devuelve el usuario (hay que iniciar sesión después). */
 export type RegisterResponse = UserResponse

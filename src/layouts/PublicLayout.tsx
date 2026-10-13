@@ -6,32 +6,61 @@ import { PUBLIC_NAV } from '@/config/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import styles from './PublicLayout.module.css'
 
+/** Rutas del catálogo: en los mockups usan barra navy con buscador teal. */
+const CATALOG_PREFIXES = ['/explorar', '/actividades', '/eventos', '/servicios']
+
 /**
- * Shell de las páginas públicas: barra superior clara con buscador,
- * contenido y pie de página.
+ * Shell de las páginas públicas: barra superior con buscador, contenido y pie.
+ * El catálogo usa la variante oscura, como en los mockups.
  */
 export function PublicLayout() {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user } = useAuth()
   const { pathname } = useLocation()
 
-  // El buscador solo aparece en el catálogo, como en los diseños.
-  const isCatalog = PUBLIC_NAV.some((item) => pathname.startsWith(item.to))
+  const isCatalog = CATALOG_PREFIXES.some((prefix) =>
+    pathname.startsWith(prefix),
+  )
+
+  // El buscador aparece en todo el catálogo público, salvo en login y registro.
+  const isAuthPage = pathname === '/login' || pathname === '/registro'
+
+  const links =
+    isAuthenticated && user?.role === 'TOURIST'
+      ? [
+          ...PUBLIC_NAV,
+          { to: '/itinerario', label: 'Mis viajes' },
+          { to: '/mis-reservas', label: 'Mis reservas' },
+        ]
+      : PUBLIC_NAV
 
   return (
     <div className={styles.shell}>
       <TopBar
-        search={isCatalog}
-        links={PUBLIC_NAV}
+        tone={isCatalog ? 'dark' : 'light'}
+        search={!isAuthPage}
+        links={links}
         right={
           isAuthenticated ? (
             <>
-              <Link to="/app">
-                <Button variant="outline" size="sm">
-                  Ir al panel
-                </Button>
+              {!isCatalog && (
+                <Link to="/app">
+                  <Button variant="outline" size="sm">
+                    Ir al panel
+                  </Button>
+                </Link>
+              )}
+              <Link
+                to="/perfil"
+                className={styles.avatarLink}
+                aria-label="Mi perfil"
+              >
+                <span className={styles.avatar} aria-hidden="true" />
               </Link>
-              <span className={styles.avatar} aria-hidden="true" />
             </>
+          ) : isCatalog ? (
+            <Link to="/login" className={styles.sessionLink}>
+              Iniciar sesión
+            </Link>
           ) : (
             <Link to="/registro">
               <Button variant="outline">Crear cuenta</Button>

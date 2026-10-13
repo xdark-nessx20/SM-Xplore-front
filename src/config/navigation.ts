@@ -16,14 +16,14 @@ export interface NavItem {
  */
 export const NAV_ITEMS: NavItem[] = [
   {
-    to: '/app/explorar',
+    to: '/explorar',
     label: 'Explorar',
     description:
       'Catálogo público: eventos, actividades y servicios turísticos disponibles, con búsqueda y filtros.',
     roles: ['TOURIST'],
   },
   {
-    to: '/app/mis-reservas',
+    to: '/mis-reservas',
     label: 'Mis reservas',
     description:
       'Reservas del turista con su estado, total, ítems y acciones (cancelar, solicitar cancelación).',
@@ -34,6 +34,13 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'Mis actividades',
     description:
       'Actividades asignadas al guía: agenda, disponibilidad, cupos y estado.',
+    roles: ['GUIDE'],
+  },
+  {
+    to: '/app/disponibilidad',
+    label: 'Disponibilidad',
+    description:
+      'Fechas, cupos por turno, bloqueo de fechas y cierre temporal de la actividad.',
     roles: ['GUIDE'],
   },
   {
@@ -51,10 +58,10 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ['SERVICE_PROVIDER', 'GUIDE'],
   },
   {
-    to: '/app/sitios',
-    label: 'Destinos y sitios',
+    to: '/app/zonas',
+    label: 'Zonas',
     description:
-      'Sitios y zonas bajo gestión de la entidad de destinos, con sus atractivos.',
+      'Zonas turísticas con sus sitios, capacidad, afluencia y estado de congestión.',
     roles: ['DESTINATION_MANAGER'],
   },
   {
@@ -110,12 +117,12 @@ export interface PublicNavItem {
 }
 
 /**
- * Navegación del catálogo público (barra superior clara).
- * Las pantallas todavía son provisionales.
+ * Navegación del catálogo público (barra superior).
+ * "Actividades" apunta a /explorar, que es la entrada del catálogo.
  */
 export const PUBLIC_NAV: PublicNavItem[] = [
-  { to: '/explorar', label: 'Atractivos' },
-  { to: '/actividades', label: 'Actividades' },
+  { to: '/atractivos', label: 'Atractivos' },
+  { to: '/explorar', label: 'Actividades' },
   { to: '/eventos', label: 'Eventos' },
   { to: '/servicios', label: 'Servicios' },
 ]

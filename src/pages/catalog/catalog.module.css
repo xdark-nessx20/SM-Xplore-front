@@ -1,0 +1,354 @@
+/* Páginas del catálogo (Explorar y detalle). */
+.page {
+  padding: 2rem 1.5rem 3rem;
+}
+
+.layout {
+  display: grid;
+  gap: 1.5rem;
+}
+
+@media (min-width: 1000px) {
+  .layout {
+    grid-template-columns: 17rem minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+/* Panel de filtros */
+.filters {
+  display: grid;
+  gap: 1.1rem;
+  padding: 1.5rem;
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+}
+
+.filtersTitle {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.field {
+  display: block;
+}
+
+.fieldLabel {
+  display: block;
+  margin-bottom: 0.45rem;
+  font-family: var(--font-heading);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.control {
+  width: 100%;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface-alt);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.95rem;
+}
+
+.control:disabled {
+  color: var(--color-placeholder);
+}
+
+.range {
+  width: 100%;
+  accent-color: var(--color-ink);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.filterActions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.filterActions > * {
+  flex: 1;
+}
+
+.sort {
+  padding: 0.6rem 1.1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background-color: var(--color-bg);
+  color: var(--color-text-soft);
+  font: inherit;
+  font-size: 0.95rem;
+}
+
+.sort:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+/* Resultados */
+.resultsHead {
+  display: none;
+}
+
+.cards {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr));
+}
+
+.state {
+  margin: 0;
+  padding: 3rem 1.5rem;
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.stateTitle {
+  margin: 0 0 0.4rem;
+  font-family: var(--font-heading);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.stateActions {
+  display: flex;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.banner {
+  margin: 0 0 1.25rem;
+  padding: 0.9rem 1.1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.95rem;
+}
+
+.error {
+  border: 1px solid var(--color-danger-border);
+  background-color: #fef2f2;
+  color: var(--color-danger-text);
+}
+
+/* Detalle de la actividad */
+.detailLayout {
+  display: grid;
+  gap: 1.5rem;
+}
+
+@media (min-width: 1000px) {
+  .detailLayout {
+    grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+.column {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.hero {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-size: 0.95rem;
+}
+
+.sectionTitle {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.paragraph {
+  margin: 0;
+  color: var(--color-text-soft);
+  line-height: 1.55;
+}
+
+.paragraphMuted {
+  margin: 0;
+  color: var(--color-muted);
+}
+
+.tiles {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+}
+
+.tile {
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg);
+}
+
+.tileLabel {
+  display: block;
+  margin-bottom: 0.15rem;
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+.tileValue {
+  font-family: var(--font-heading);
+  font-weight: 700;
+}
+
+.map {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 14rem;
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  background-color: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+/* Panel de reserva */
+.booking {
+  display: grid;
+  gap: 1rem;
+  padding: 1.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background-color: var(--color-bg);
+}
+
+.bookingLabel {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.priceRow {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.priceBig {
+  font-family: var(--font-heading);
+  font-size: 1.9rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.priceUnit {
+  color: var(--color-muted);
+  font-size: 0.95rem;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.stepperButton {
+  width: 2.4rem;
+  height: 2.4rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface-alt);
+  color: var(--color-text);
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.stepperButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.stepperValue {
+  min-width: 2.5rem;
+  text-align: center;
+  font-family: var(--font-heading);
+  font-weight: 700;
+}
+
+.lines {
+  display: grid;
+  gap: 0.4rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--color-muted);
+  font-size: 0.95rem;
+}
+
+.totalRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 1.15rem;
+}
+
+.totalTag {
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--color-text);
+  border-radius: 999px;
+  font-size: 0.85rem;
+}
+
+.feedback {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.92rem;
+}
+
+.success {
+  border: 1px solid var(--color-success-text);
+  background-color: var(--color-success-bg);
+  color: var(--color-success-text);
+}
+
+.review {
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.review:last-of-type {
+  border-bottom: none;
+}
+
+.reviewAuthor {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.reviewText {
+  margin: 0.2rem 0 0;
+  color: var(--color-text-soft);
+  font-size: 0.92rem;
+}

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { classNames } from '@/utils/format'
 import styles from './PageHeader.module.css'
 
 export interface Crumb {
@@ -16,6 +17,8 @@ export interface PageHeaderProps {
   description?: string
   /** Botones u acciones alineados a la derecha. */
   actions?: ReactNode
+  /** Títulos en DM Serif Display (páginas de catálogo, como en los mockups). */
+  serif?: boolean
 }
 
 /** Encabezado de pantalla del panel: migas, título, metadatos y acciones. */
@@ -25,6 +28,7 @@ export function PageHeader({
   meta,
   description,
   actions,
+  serif = false,
 }: PageHeaderProps) {
   return (
     <div className={styles.wrapper}>
@@ -47,7 +51,9 @@ export function PageHeader({
         )}
 
         <div className={styles.heading}>
-          <h1 className={styles.title}>{title}</h1>
+          <h1 className={classNames(styles.title, serif && styles.serif)}>
+            {title}
+          </h1>
           {meta !== undefined && <span className={styles.meta}>{meta}</span>}
         </div>
 
